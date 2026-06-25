@@ -1,0 +1,80 @@
+# Phase 1: Disorder-Only Training — ESMC-6B (LoRA fine-tuning)
+# Focus: Train backbone (LoRA) + disorder head with the 6B ESM-C backbone.
+# Requires ~25 GB download of biohub/ESMC-6B safetensors on first run.
+# GPU: ~24 GB for weights (bf16) + LoRA grads through 80 layers.
+# Usage: python -m src.cli.train --config configs/phase1/disorder_6b.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_unaltered_data.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_unaltered_data.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_6b"
+  hidden_dim: 2560
+  dropout: 0.2
+
+  disorder_prior: 0.1159
+
+  context_type: bigru
+
+  # Fusion strategy: sum (no extra params; 6B hidden dim is large)
+  fusion_type: sum
+
+  use_crf: false
+
+  # LoRA Configuration — real backbone fine-tuning (no_grad bug fixed)
+  freeze_backbone: false
+  use_lora: true
+  lora:
+    r: 32                       # Lower than 600M (80 layers -> ~2.2x LoRA params at same rank)
+    lora_alpha: 64              # 2x r
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  pdb_loss_weight: 1
+  disprot_oversample_factor: 4
+
+  phase: 1
+  output_dir: "./checkpoints/phase1_6b"
+  num_epochs: 25
+  warmup_epochs: 3
+  batch_size: 2                   # 6B: small batch (80-layer backprop is memory-heavy)
+  gradient_accumulation_steps: 8  # effective batch = 16
+
+  loss_type: "bce"
+  use_class_weights: false
+  disorder_loss_type: "bce"
+
+  gaussian_sigma: 2.0
+
+  boundary_aux_weight: 0.0
+  boundary_radius: 2
+
+  focal_gamma: 1.5
+  focal_alpha: 0.8
+
+  optimizer:
+    type: "AdamW"
+    lr: 3.0e-5
+    weight_decay: 0.01
+    decouple_weight_decay: false
+
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 25
+    eta_min: 1.0e-6
+
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+
+  best_metric: "val_disorder_loss"
+  best_metric_mode: "min"
+
+  num_workers: 2
+  use_weighted_sampling: false

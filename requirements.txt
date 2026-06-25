@@ -1,0 +1,38 @@
+# Full project Python dependencies for training, evaluation, preprocessing, and submission.
+# Non-Python tooling such as mmseqs2 is installed via environment.yml.
+#
+# esm is installed separately with --no-deps to avoid pulling in Biohub's forked
+# transformers package and unused structure-processing/visualization deps
+# (rdkit, pydssp, py3dmol, etc.) that are not needed for the ESM-C safetensors
+# embedding path.
+# Lightweight runtime deps that ESM-C imports are listed below explicitly.
+#   pip install --no-deps "esm@git+https://github.com/Biohub/esm.git@82ee35553d39169d678f784c8d3f8712ffd7d2c4"
+
+accelerate==1.13.0
+attrs==26.1.0
+biopython==1.86
+biotite==1.6.0
+brotli==1.2.0
+cloudpathlib==0.23.0
+einops==0.8.2
+h5py==3.16.0
+httpx==0.28.1
+huggingface_hub==0.36.2
+matplotlib==3.10.8
+msgpack-numpy==0.4.8
+numpy==2.4.3
+pandas==3.0.1
+peft==0.18.1
+pygtrie==2.5.0
+python-dotenv==1.2.2
+pytorch-crf==0.7.2
+PyYAML==6.0.3
+requests==2.32.5
+safetensors>=0.7.0
+scikit-learn==1.8.0
+scipy==1.17.1
+tenacity==9.1.4
+torch==2.11.0
+tqdm==4.67.3
+transformers==4.48.1
+zstd==1.5.7.3

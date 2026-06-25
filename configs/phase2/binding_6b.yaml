@@ -1,0 +1,71 @@
+# Phase 2: Binding-Only Training — ESMC-6B (LoRA fine-tuning)
+# Focus: Train binding head on top of a 6B Phase 1 checkpoint.
+# Requires a Phase 1 6B checkpoint (e.g. from disorder_6b.yaml).
+# Usage: python -m src.cli.train --config configs/phase2/binding_6b.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_phase2_any_data.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_phase2_any_data.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_6b"
+  hidden_dim: 2560
+  dropout: 0.2
+
+  phase1_context_type: bigru
+  phase2_context_type: bilstm
+
+  phase1_checkpoint: "checkpoints/phase1_6b/best_model.pt"
+
+  use_binding_head: true
+  use_linker_head: false
+  use_crf_linker: false
+  binding_combined: false
+  binding_head_type: cnn
+
+  # LoRA Configuration (must match Phase 1 checkpoint)
+  freeze_backbone: false
+  use_lora: true
+  lora:
+    r: 32
+    lora_alpha: 64
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  phase: 2
+  output_dir: "./checkpoints/phase2/binding_6b"
+  num_epochs: 50
+  batch_size: 2
+  gradient_accumulation_steps: 8
+  idr_weight_binding: 1.0
+
+  binding_loss_type: "focal"
+  focal_gamma: 2.0
+  focal_alpha: 0.85
+  pos_weight_binding: 5.0
+
+  optimizer:
+    type: "AdamW"
+    lr: 8.0e-4
+    weight_decay: 0.1
+    decouple_weight_decay: true
+
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 50
+    eta_min: 1.0e-6
+
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+
+  best_metric: "val_binding_loss"
+  best_metric_mode: "min"
+
+  num_workers: 2
+  use_weighted_sampling: false

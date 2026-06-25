@@ -1,0 +1,104 @@
+# Phase 1: Disorder-Only Training
+# Focus: Train backbone + disorder head with high-quality disorder annotations
+# Usage: python -m src.cli.train --config configs/phase1/disorder_gate.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_unaltered_data.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_unaltered_data.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_600m"
+  hidden_dim: 1152 # 960
+  dropout: 0.2
+  
+  # Disorder bias initialization from training set prior
+  # Combined: 11.59%, DisProt-only: 19.40%, PDB-only: 10.09% (New values)
+  disorder_prior: 0.1159
+  
+  # Main context type for Phase 1
+  context_type: bigru
+
+  # Fusion strategy for cross-attention + local + raw ESM features:
+  #   sum   — LN(cross + raw + local) (original, no extra params)
+  #   gate  — Variant A: per-residue learned bottleneck gate (~1M params)
+  #   alpha — Variant B: learned per-channel static blend (~1152 params)
+  fusion_type: gate
+
+  # CRF Configuration
+  # Enable Conditional Random Field for structured prediction of disorder
+  # DISABLED: CRF does not support masked (skipped) residues within sequences (e.g. from PDB filtering)
+  use_crf: false
+
+  # LoRA Configuration
+  freeze_backbone: false
+  use_lora: true  # Set to true for parameter-efficient fine-tuning
+  lora:
+    r: 64                      # Increased capacity (was 32)
+    lora_alpha: 128            # Scaled with rank (2x r)
+    lora_dropout: 0.1          # Reduced dropout for better gradient flow
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"] # attn.layernorm_qkv.1 is LayerNorm, not Linear — excluded
+
+training:
+  pdb_loss_weight: 0.1  # Recommended: 0.085 balances the ~11.8:1 ratio of PDB_missing to DisProt curated data (1764 DisProt : 20865 PDB_missing)
+  disprot_oversample_factor: 1  # DisProt samples drawn N× more often per epoch than PDB_missing (1 = uniform)
+  
+  phase: 1  # Use cascDP_Phase1 model
+  output_dir: "./checkpoints/phase1_gate"
+  num_epochs: 25
+  warmup_epochs: 3  # Linear warmup for first N epochs
+  batch_size: 8
+  gradient_accumulation_steps: 2
+
+  # Loss Configuration
+  # Options: 'focal' (recommended for imbalance) or 'bce'
+  loss_type: "bce"
+  use_class_weights: false 
+  # pos_weight_disorder: 8.0  # ≈ (1 - 0.1159) / 0.1159, applied regardless if use_class_weights is true
+  
+  # Specific Loss Types
+  disorder_loss_type: "bce"
+
+  # Gaussian Label Smoothing (training-time: softens labels near D<->O boundaries)
+  # Also use --gaussian-sigma at eval time for post-prediction smoothing.
+  # Set to 0 to disable. Recommended: 1.0-2.0
+  gaussian_sigma: 2.0 # 2.0
+
+  # Boundary Auxiliary Loss (works with bce, focal, and CRF main losses)
+  # Adds a focal loss term on residues within `boundary_radius` of a D<->O transition.
+  # Sharpens segment boundaries; partially counteracts gaussian_sigma smoothing —
+  # if both are non-zero, the boundary aux pulls toward hard 0/1 while smoothing softens
+  # toward 0.5, so tune them together.
+  # Set to 0.0 to disable. Recommended starting value: 0.1–0.3
+  boundary_aux_weight: 0.0
+  boundary_radius: 2   # residues on each side of the transition to include
+
+  # Focal Loss Parameters
+  focal_gamma: 2.0
+  focal_alpha: 0.85 # original 0.85 for all models
+  
+  # Optimizer
+  optimizer:
+    type: "AdamW"
+    lr: 1.0e-5 # 3.0e-4 # unfrozen: 3.0e-5
+    weight_decay: 0.1  # raised from 0.01
+    decouple_weight_decay: true  # true = exclude LN weights + biases from decay (best practice; retune lr/wd if enabled)
+
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 25          # full training length; cosine decays over T_max - warmup_epochs
+    eta_min: 1.0e-6    # final LR floor
+  
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+  
+  # Phase 1: Track disorder metrics
+  best_metric: "val_disorder_loss" # disorder_f_max ; disorder_auc ; val_disorder_loss
+  best_metric_mode: "min"
+  
+  num_workers: 2
+  use_weighted_sampling: false

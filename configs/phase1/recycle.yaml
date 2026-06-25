@@ -1,0 +1,92 @@
+# Phase 1: Disorder Prediction with Iterative Recycling
+# Variant of configs/phase1/disorder.yaml with recycling enabled.
+# Usage: python -m src.cli.train_recycle --config configs/phase1/recycle.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  # train_disorder_file: "data/final_cleaned_dataset/train_pdb_only.txt"
+  # val_disorder_file: "data/final_cleaned_dataset/val_pdb_only.txt"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_unaltered_data.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_unaltered_data.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_600m"
+  hidden_dim: 1152
+  dropout: 0.2
+
+  # Disorder bias initialization from training set prior (combined dataset)
+  disorder_prior: 0.1159
+
+  # Main context type for Phase 1
+  context_type: bigru
+
+  # Recycling: number of recycle passes on top of the base pass.
+  # Total passes = 1 (base) + num_recycles.
+  # Training-time: n_iters ~ Uniform[1, 1+num_recycles] per batch (stochastic, AF2 pattern).
+  # Eval-time: always 1+num_recycles (deterministic, maximum refinement).
+  num_recycles: 2
+
+  # CRF Configuration
+  use_crf: false
+
+  # LoRA Configuration
+  freeze_backbone: false
+  use_lora: true
+  lora:
+    r: 64
+    lora_alpha: 128
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  pdb_loss_weight: 0.1
+  disprot_oversample_factor: 1
+
+  phase: 1
+  output_dir: "./checkpoints/phase1_recycle"
+  num_epochs: 25
+  warmup_epochs: 3
+  batch_size: 8
+  gradient_accumulation_steps: 2
+
+  # Loss Configuration
+  loss_type: "bce"
+  use_class_weights: false
+
+  disorder_loss_type: "bce"
+
+  # Gaussian Label Smoothing
+  gaussian_sigma: 2.0
+
+  # Boundary Auxiliary Loss (disabled by default; tune alongside gaussian_sigma)
+  boundary_aux_weight: 0.0
+  boundary_radius: 2
+
+  # Focal Loss Parameters (used if loss_type: focal)
+  focal_gamma: 2.0
+  focal_alpha: 0.85
+
+  # Optimizer
+  optimizer:
+    type: "AdamW"
+    lr: 3.0e-5         # test 3.0e-4 for frozen esm next # Phase 1 base weights — same as tuned phase1_disorder
+    recycle_proj_lr: 1.0e-4   # recycle_proj/norms start from zero, need higher LR
+    weight_decay: 0.01
+
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 25
+    eta_min: 1.0e-6
+
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+
+  best_metric: "val_disorder_loss"
+  best_metric_mode: "min"
+
+  num_workers: 2
+  use_weighted_sampling: false

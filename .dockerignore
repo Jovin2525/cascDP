@@ -1,0 +1,17 @@
+.git/
+__pycache__/
+*.py[cod]
+*.log
+.env
+.venv/
+env/
+venv/
+checkpoints/
+data/
+results/
+plots/
+recovered_code_blocks/
+docs/diagrams/
+*.ipynb
+*.pt
+*.pth

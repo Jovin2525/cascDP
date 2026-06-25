@@ -1,0 +1,12 @@
+name: cascDP
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - pip
+  - mmseqs2=18.8cc5c
+  - gxx_linux-64
+  - gcc_linux-64
+  - pip:
+      - -r requirements.txt

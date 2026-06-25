@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints
+notebooks/
+
+# PyTorch & Checkpoints
+*.pt
+*.pth
+checkpoints/*
+!checkpoints/
+!checkpoints/unified_esm_unfrozen_v3_nolora.pt
+
+# Data & Logs & Artifacts
+*.log
+*.json
+*.fasta
+*.tsv
+*.h5
+/data/
+results/
+plots/
+artifacts/
+runs/
+
+# VS Code / OS
+.vscode/
+.DS_Store
+
+# Unneeded scripts and files
+docs/diagrams/
+/scripts/analysis/
+/scripts/visualisation/
+
+# Binary export artifacts
+*.pdf
+*.png

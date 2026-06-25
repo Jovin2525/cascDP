@@ -1,0 +1,63 @@
+# Phase 1 Ablation: PDB-Only Training
+# Tests disorder prediction using only PDB_missing data (20,924 train / 7,070 val / 542 test)
+# Usage: python -m src.cli.train --config configs/phase1/pdb_only.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  train_disorder_file: "data/final_cleaned_dataset/train_pdb_only.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_pdb_only.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_600m"
+  hidden_dim: 1152 # 960
+  dropout: 0.2
+  disorder_prior: 0.1009  # PDB-only: 446,200 / 4,422,328 disordered residues
+  context_type: bigru
+  fusion_type: sum
+  use_crf: false
+  freeze_backbone: false
+  use_lora: true
+  lora:
+    r: 64
+    lora_alpha: 128
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  pdb_loss_weight: 1.0  # All samples are PDB — uniform weighting
+  disprot_oversample_factor: 1
+  phase: 1
+  output_dir: "./checkpoints/phase1_single_source/pdb_only"
+  num_epochs: 25
+  warmup_epochs: 3
+  batch_size: 8
+  gradient_accumulation_steps: 2
+  loss_type: "bce"
+  use_class_weights: false
+  disorder_loss_type: "bce"
+  gaussian_sigma: 2.0
+  # Boundary aux: extra focal loss on D<->O transition residues (works with bce/focal/CRF).
+  # Counteracts gaussian_sigma — tune together. Recommended: 0.1–0.3 to enable.
+  boundary_aux_weight: 0.0
+  boundary_radius: 2
+  focal_gamma: 1.5
+  focal_alpha: 0.8
+  optimizer:
+    type: "AdamW"
+    lr: 3.0e-5
+    weight_decay: 0.01
+    decouple_weight_decay: false
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 25
+    eta_min: 1.0e-6
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+  best_metric: "val_disorder_loss"
+  best_metric_mode: "min"
+  num_workers: 2
+  use_weighted_sampling: false

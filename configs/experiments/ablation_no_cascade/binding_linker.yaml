@@ -1,0 +1,62 @@
+# configs/experiments/ablation_no_cascade/binding_linker.yaml
+#
+# Ablation: binding + linker, jointly, WITHOUT disorder cascade.
+# Train:  python -m src.cli.train_ablation_no_cascade --config configs/experiments/ablation_no_cascade/binding_linker.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_phase2_any_data.txt"
+  val_disorder_file:   "data/final_cleaned_dataset/val_final_phase2_any_data.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_600m"
+  dropout: 0.2
+
+  phase1_checkpoint: "./checkpoints/phase1/updated_crf_crossattn_bilstm.pt"
+
+  context_type: bilstm
+
+  use_binding_head: true
+  use_linker_head: true
+  freeze_backbone: true
+
+  use_lora: true
+  lora:
+    r: 64
+    lora_alpha: 128
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.layernorm_qkv.1", "attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  output_dir: "./checkpoints/ablation_no_cascade/binding_linker"
+  num_epochs: 50
+  batch_size: 8
+  gradient_accumulation_steps: 2
+
+  idr_weight_binding: 2.0
+  idr_weight_linker: 5.0
+
+  binding_loss_type: "focal"
+  linker_loss_type: "bce"
+  focal_gamma: 2.0
+  focal_alpha: 0.9
+
+  optimizer:
+    type: "AdamW"
+    lr: 2.0e-5
+    weight_decay: 0.2
+
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+
+  best_metric: "val_composite_auc"
+  best_metric_mode: "max"
+  composite_auc_weights:
+    binding_auc: 0.5
+    linker_auc: 0.5
+
+  num_workers: 2

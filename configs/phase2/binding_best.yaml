@@ -1,0 +1,77 @@
+# Phase 2: Binding-Only Training  (Separate Training Strategy — Step 2 of 2)
+# Focus: Train binding head in isolation; merge later with linker checkpoint.
+# See also: configs/phase2/linker.yaml
+# Merge:    python -m src.cli.merge_phase2 --binding_ckpt ... --linker_ckpt ... --output ...
+# Dataset:  Uses filtered proteins with linker/binding annotations only (~39% of DisProt)
+# Usage:    python -m src.cli.train --config configs/phase2/binding_best.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_phase2_any_data.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_phase2_any_data.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_600m"
+  hidden_dim: 1152
+  dropout: 0.2
+
+  # Phase 1 Model
+  phase1_context_type: bigru
+
+  # Phase 2 Function Heads
+  phase2_context_type: bilstm
+  
+  # Phase 1 checkpoint to load (required for Phase 2)
+  phase1_checkpoint: "checkpoints/phase1/best_model_bce_gauss_01_esm_unfrozen_v5_pdb01_lr3e5_bigru.pt"
+
+  # Phase 2 specific settings (binding-only)
+  use_binding_head: true   # Binding-only training; linker is trained separately
+  use_linker_head: false   # Disable linker head
+  use_crf_linker: false
+
+  # LoRA Configuration (must match Phase 1 checkpoint)
+  freeze_backbone: false
+  use_lora: true
+  lora:
+    r: 64
+    lora_alpha: 128
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  phase: 2
+  output_dir: "./checkpoints/phase2/binding"
+  num_epochs: 50
+  batch_size: 8
+  gradient_accumulation_steps: 4
+  idr_weight_binding: 2.0          # Penalize binding errors in IDRs
+
+  # Loss Configuration
+  binding_loss_type: "focal"       # Best for imbalanced binding sites
+  focal_gamma: 2.0
+  focal_alpha: 0.85
+
+  # Optimizer
+  optimizer:
+    type: "AdamW"
+    lr: 5.0e-4
+    weight_decay: 0.05
+
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 50 # 100 
+    eta_min: 1.0e-6 # 1.0e-7
+
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+
+  # Phase 2: Track binding metrics
+  best_metric: "val_binding_loss"       # binding-only; was "val_composite_auc" for unified
+  best_metric_mode: "min"
+
+  num_workers: 2
+  use_weighted_sampling: false

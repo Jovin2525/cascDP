@@ -1,0 +1,85 @@
+# Phase 2 MLP-Cascade: Linker-Only Training
+#
+# Variant of Phase 2 that cascades Phase 1's 128-dim MLP hidden features
+# instead of the 512-dim ASPP output.  All other hyperparameters match
+# configs/phase2/linker.yaml for a fair comparison.
+#
+# Usage:
+#   python -m src.cli.train_phase2_mlp_cascade \
+#       --config configs/experiments/phase2_mlp_cascade/linker.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_phase2_any_data.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_phase2_any_data.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_600m"
+  hidden_dim: 1152
+  dropout: 0.2
+
+  # Phase 1 architecture (must match checkpoint)
+  phase1_context_type: bigru
+
+  # Phase 2 function heads
+  phase2_context_type: bigru
+
+  # Phase 1 checkpoint to load (required)
+  phase1_checkpoint: "checkpoints/phase1/best_model_bce_gauss_01_esm_unfrozen_v5_pdb01_lr3e5_bigru.pt"
+
+  # Head configuration (linker-only; binding trained separately)
+  use_binding_head: false
+  use_linker_head: true
+  use_crf_linker: false
+
+  # Cascade bottleneck dimension for all Phase 2 head layers.
+  # 512: disorder_proj expands 128->512 (same width as standard Phase 2)
+  # 128: all layers operate at MLP-cascade resolution (no expansion)
+  #      seq_proj uses two-stage funnel: 1152->512->128
+  cascade_dim: 128
+
+  # LoRA (must match Phase 1 checkpoint)
+  freeze_backbone: false
+  use_lora: true
+  lora:
+    r: 64
+    lora_alpha: 128
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  output_dir: "./checkpoints/phase2_mlp_cascade/linker"
+  num_epochs: 50
+  batch_size: 8
+  gradient_accumulation_steps: 4
+  idr_weight_linker: 3.0
+
+  # Loss
+  linker_loss_type: "focal"
+  focal_gamma: 2.0
+  focal_alpha: 0.85
+  linker_gaussian_sigma: 0.0
+
+  # Optimizer
+  optimizer:
+    type: "AdamW"
+    lr: 5.0e-5
+    weight_decay: 0.05
+
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1.0e-7
+
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 9999  # disabled — best_model.pt always saved
+  early_stopping_patience: 5
+
+  best_metric: "val_linker_loss"
+  best_metric_mode: "min"
+
+  num_workers: 2
+  use_weighted_sampling: false

@@ -1,0 +1,85 @@
+# Phase 1: Disorder-Only Training — ESMC-6B (Frozen backbone, precomputed embeddings)
+# Focus: Train disorder head only on top of frozen 6B embeddings.
+# Precompute embeddings first:
+#   python -m src.embeddings.generate_embeddings \
+#       --dataset_file data/final_cleaned_dataset/train_final_update_or_caid4_unaltered_data.txt \
+#       --output data/embeddings/esmc_6b/train.h5 --model esmc_6b
+#   python -m src.embeddings.generate_embeddings \
+#       --dataset_file data/final_cleaned_dataset/val_final_update_or_caid4_unaltered_data.txt \
+#       --output data/embeddings/esmc_6b/val.h5 --model esmc_6b
+# Usage: python -m src.cli.train --config configs/phase1/disorder_6b_frozen.yaml
+
+data:
+  embedding_mode: "precomputed"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_unaltered_data.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_unaltered_data.txt"
+  train_embedding_dir: "data/embeddings/esmc_6b/train.h5"
+  val_embedding_dir: "data/embeddings/esmc_6b/val.h5"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_6b"
+  hidden_dim: 2560
+  dropout: 0.2
+
+  disorder_prior: 0.1159
+
+  context_type: bigru
+  fusion_type: sum
+
+  use_crf: false
+
+  # Frozen backbone — no LoRA, no backbone gradients
+  freeze_backbone: true
+  use_lora: false
+  lora:
+    r: 32
+    lora_alpha: 64
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  pdb_loss_weight: 0.1
+  disprot_oversample_factor: 1
+
+  phase: 1
+  output_dir: "./checkpoints/phase1_6b_frozen"
+  num_epochs: 25
+  warmup_epochs: 3
+  batch_size: 8
+  gradient_accumulation_steps: 2
+
+  loss_type: "bce"
+  use_class_weights: false
+  disorder_loss_type: "bce"
+
+  gaussian_sigma: 2.0
+
+  boundary_aux_weight: 0.0
+  boundary_radius: 2
+
+  focal_gamma: 1.5
+  focal_alpha: 0.8
+
+  optimizer:
+    type: "AdamW"
+    lr: 5.0e-6
+    weight_decay: 0.01
+    decouple_weight_decay: false
+
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 25
+    eta_min: 1.0e-6
+
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+
+  best_metric: "val_disorder_loss"
+  best_metric_mode: "min"
+
+  num_workers: 2
+  use_weighted_sampling: false

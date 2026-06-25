@@ -1,0 +1,75 @@
+# configs/experiments/ablation_no_cascade/linker.yaml
+#
+# Ablation: linker head WITHOUT disorder cascade.
+# Compare against: configs/phase2/linker.yaml
+# Train:  python -m src.cli.train_ablation_no_cascade --config configs/experiments/ablation_no_cascade/linker.yaml
+
+data:
+  embedding_mode: "on_the_fly"
+  train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_phase2_any_data.txt"
+  val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_phase2_any_data.txt"
+
+model:
+  backbone_type: "esmc"
+  backbone_name: "esmc_600m"
+  hidden_dim: 1152
+  dropout: 0.2
+
+  phase1_context_type: bigru
+  phase2_context_type: bilstm
+
+  phase1_checkpoint: "checkpoints/phase1/best_model_bce_gauss_01_esm_unfrozen_v5_pdb01_lr3e5_bigru.pt"
+
+  use_binding_head: false
+  use_linker_head: true
+  use_crf_linker: false
+
+  freeze_backbone: false
+  use_lora: true
+  lora:
+    r: 64
+    lora_alpha: 128
+    lora_dropout: 0.1
+    layers_to_transform: null
+    target_modules: ["attn.out_proj", "ffn.1", "ffn.3"]
+
+training:
+  phase: 2
+  output_dir: "./checkpoints/ablation_no_cascade/linker"
+  num_epochs: 50
+  batch_size: 8
+  gradient_accumulation_steps: 4
+
+  idr_weight_linker: 1.0
+
+  loss_type: "focal"
+  linker_loss_type: "focal"
+  focal_gamma: 2.0
+  focal_alpha: 0.9
+  focal_positives_only: false
+  linker_gaussian_sigma: 2.0
+  pos_weight_linker: 45.0
+
+  # Optimizer - lower LR for fine-tuning
+  optimizer:
+    type: "AdamW"
+    lr: 1.0e-4
+    weight_decay: 0.1
+    decouple_weight_decay: true
+  
+  scheduler:
+    type: "CosineAnnealingLR"
+    T_max: 50
+    eta_min: 1.0e-7
+
+  max_grad_norm: 1.0
+  eval_every: 1
+  save_every: 5
+  early_stopping_patience: 5
+
+  # Phase 2: Track linker metrics
+  best_metric: "val_linker_loss" # "linker_auc"        # linker-only; was "val_composite_auc" for unified
+  best_metric_mode: "min"
+
+  num_workers: 2
+  use_weighted_sampling: false
