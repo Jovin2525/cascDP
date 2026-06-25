@@ -41,6 +41,7 @@ runs/
 docs/diagrams/
 /scripts/analysis/
 /scripts/visualisation/
+/scripts/rewrite_drawio.py
 
 # Binary export artifacts
 *.pdf
