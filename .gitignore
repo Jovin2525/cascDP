@@ -19,7 +19,7 @@ notebooks/
 *.pth
 checkpoints/*
 !checkpoints/
-!checkpoints/unified_esm_unfrozen_v3_nolora.pt
+!checkpoints/cascDP.pt
 
 # Data & Logs & Artifacts
 *.log
