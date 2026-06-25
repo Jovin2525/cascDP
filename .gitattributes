@@ -1,2 +1,1 @@
-checkpoints/unified_esm_unfrozen_v3_nolora.pt filter=lfs diff=lfs merge=lfs -text
 checkpoints/cascDP.pt filter=lfs diff=lfs merge=lfs -text
