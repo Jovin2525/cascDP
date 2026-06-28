@@ -164,7 +164,7 @@ Merge the separately trained heads:
 python -m src.cli.merge_phase2 \
     --binding_ckpt checkpoints/phase2/binding/best_model.pt \
     --linker_ckpt checkpoints/phase2/linker/best_model.pt \
-    --output checkpoints/phase2/unified.pt
+    --output checkpoints/cascDP.pt
 ```
 
 Joint Phase 2 training is also available:
@@ -210,20 +210,20 @@ Examples:
 ```bash
 # CAID evaluation output.
 python -m src.cli.evaluate_caid \
-    --checkpoint checkpoints/phase2/unified.pt \
+    --checkpoint checkpoints/cascDP.pt \
     --test-set caid3_binding \
     --output-dir results/evaluations/cascdp
 
 # Faster local check without bootstrap metrics.
 python -m src.cli.evaluate_caid \
-    --checkpoint checkpoints/phase2/unified.pt \
+    --checkpoint checkpoints/cascDP.pt \
     --test-set caid3_linker \
     --output-dir results/evaluations/cascdp \
     --skip-bootstrap
 
 # Evaluate only selected output flavors.
 python -m src.cli.evaluate_caid \
-    --checkpoint checkpoints/phase2/unified.pt \
+    --checkpoint checkpoints/cascDP.pt \
     --test-set caid3_binding \
     --flavors binding
 ```
@@ -232,7 +232,7 @@ For multi-label binding checkpoints, select a per-type head instead of the combi
 
 ```bash
 python -m src.cli.evaluate_caid \
-    --checkpoint checkpoints/phase2/unified.pt \
+    --checkpoint checkpoints/cascDP.pt \
     --test-set caid3_binding \
     --binding-head protein
 ```
@@ -259,7 +259,7 @@ For general local prediction from FASTA, use `src.cli.predict`. This path builds
 
 ```bash
 python -m src.cli.predict \
-    --checkpoint checkpoints/phase2/unified.pt \
+    --checkpoint checkpoints/cascDP.pt \
     --config configs/phase2/joint.yaml \
     --fasta input.fasta \
     --output-dir results/predictions \
