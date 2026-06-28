@@ -81,36 +81,6 @@ def write_timings(path: Path, timings) -> None:
         writer.writerows(timings)
     logger.info("Saved timings: %s", path)
 
-def write_submission_bundle(
-    predictions: Mapping[str, Mapping[str, Sequence[float]]],
-    output_dir: Path,
-    output_prefix: str = "cascDP",
-    allowed_tasks: Optional[Set[str]] = None,
-    precision: int = 6,
-) -> Dict[str, Path]:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    outputs: Dict[str, Path] = {}
-
-    for task_name, _score_key, _state_key in SUBMISSION_TASKS:
-        managed_path = output_dir / f"{output_prefix}_{task_name}.caid"
-        if managed_path.exists():
-            managed_path.unlink()
-
-    for task_name, score_key, state_key in SUBMISSION_TASKS:
-        if allowed_tasks is not None and task_name not in allowed_tasks:
-            continue
-        if not any(
-            prediction.get(score_key) is not None and prediction.get(state_key) is not None
-            for prediction in predictions.values()
-        ):
-            logger.info("Skipping %s submission file: no proteins have both scores and states", task_name)
-            continue
-        output_path = output_dir / f"{output_prefix}_{task_name}.caid"
-        write_caid_file(output_path, predictions, score_key, state_key, precision=precision)
-        outputs[task_name] = output_path
-
-    return outputs
-
 def merge_submission_files(flavor_dir: Path, merged_path: Path, pids: Optional[Set[str]]) -> int:
     merged_path.parent.mkdir(parents=True, exist_ok=True)
     safe_pids = {safe_filename(p) for p in pids} if pids is not None else None

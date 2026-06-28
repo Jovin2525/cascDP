@@ -18,7 +18,7 @@ docker run --rm \
     cascdp-caid4 \
     --checkpoint /work/model.pt --fasta /work/input.fasta \
     --embeddings /work/embeddings.h5 --output-dir /work/submission \
-    --output-prefix cascDP --tasks disorder,binding,linker --threads 24
+    --tasks disorder,binding,linker --threads 24
 ```
 
 Replace `/absolute/path/to/cascDP` with the absolute path to your local repository checkout.

@@ -37,7 +37,6 @@ docker run --rm \
     --fasta /work/input.fasta \
     --embeddings /work/embeddings.h5 \
     --output-dir /work/submission \
-    --output-prefix cascDP \
     --tasks disorder,binding,linker \
     --threads 24
 ```
@@ -55,7 +54,6 @@ docker run --rm \
     --fasta /work/input.fasta \
     --embeddings /work/embeddings \
     --output-dir /work/submission \
-    --output-prefix cascDP \
     --tasks disorder,binding,linker \
     --threads 24
 ```
@@ -73,7 +71,6 @@ python -m src.cli.predict_submission \
     --fasta /path/to/input.fasta \
     --embeddings /path/to/embeddings.h5 \
     --output-dir /path/to/submission_out \
-    --output-prefix cascDP \
     --tasks disorder,binding,linker \
     --threads 24
 ```
@@ -97,7 +94,7 @@ Output rows use CAID format:
 2	E	0.813000	1
 ```
 
-Ambiguous residues such as `B`, `Z`, `J`, `U`, `O`, and `X` are preserved in output rows and receive scores like other residues.
+Ambiguous residues are handled so the predictor never crashes on them and every residue receives a score. `B`, `Z`, `U`, `O`, and `X` map to dedicated ESM-C sequence tokens; `J` (Leucine/Isoleucine ambiguity) is not a dedicated ESM-C token and is encoded with the ESM-C `<unk>` token, still producing one per-residue embedding and score. The original FASTA character is preserved verbatim in CAID output rows (including `J`), so output reflects the input sequence exactly.
 
 `timings.csv` is written once per predictor invocation and records one elapsed time per input protein. If several tasks are requested in the same run, the same timings apply to all output flavors.
 

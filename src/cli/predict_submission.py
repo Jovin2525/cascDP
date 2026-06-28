@@ -39,11 +39,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--output-dir", default="submission", help="Directory for CAID flavor outputs")
     parser.add_argument(
-        "--output-prefix",
-        default="cascDP",
-        help="Deprecated; accepted for compatibility and stale merged-output cleanup",
-    )
-    parser.add_argument(
         "--tasks",
         default="all",
         help=(
@@ -264,15 +259,9 @@ def write_per_protein_submission(
     predictions: Mapping[str, Mapping[str, Sequence[float]]],
     output_dir: Path,
     allowed_tasks: Set[str],
-    output_prefix: str,
 ) -> Dict[str, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs: Dict[str, Path] = {}
-
-    for task_name, _score_key, _state_key in SUBMISSION_TASKS:
-        merged_path = output_dir / f"{output_prefix}_{task_name}.caid"
-        if merged_path.exists():
-            merged_path.unlink()
 
     for task_name, score_key, state_key in SUBMISSION_TASKS:
         if task_name not in allowed_tasks:
@@ -378,7 +367,6 @@ def main() -> None:
         predictions,
         output_dir,
         allowed_tasks=allowed_tasks,
-        output_prefix=args.output_prefix,
     )
     write_timings(output_dir / "timings.csv", timings)
     for task_name, output_path in outputs.items():
