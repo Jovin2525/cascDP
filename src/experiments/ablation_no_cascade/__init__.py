@@ -7,14 +7,8 @@ Architecture difference vs cascDP_Phase2:
     Full Phase 2:   ESM -> [frozen Phase1 disorder pipeline] -> function heads
     Ablation:      ESM -> BiGRU -> function heads  (disorder pipeline bypassed)
 
-Phase 1 is NOT instantiated.  Instead the Phase 1 checkpoint supplies
-LoRA-fine-tuned backbone weights which are loaded directly into the backbone.
-
-Contents:
-    model.py   — cascDP_Ablation1 (backbone + function heads, no disorder cascade)
-    loss.py    — AblationLoss (binding + linker only)
-    trainer.py — AblationTrainer
-    configs/   — YAML configs for binding-only, linker-only, joint
+Phase 1 is NOT instantiated.  Instead the Phase 1 checkpoint supplies 
+backbone weights which are loaded directly into the backbone.
 """
 
 from .model import cascDP_Ablation1

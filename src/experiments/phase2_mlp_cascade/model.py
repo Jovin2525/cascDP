@@ -11,23 +11,6 @@ Hypothesis:
     Using this more distilled bottleneck as the cascade signal may provide a
     sharper gradient pathway and cleaner disorder encoding than the 512-dim ASPP.
 
-cascade_dim controls the internal bottleneck dimension for the function heads:
-
-    cascade_dim=512 (default):
-        seq_proj: Linear(1152 -> 512)          — same width as standard Phase 2
-        disorder_proj: Linear(128 -> 512)      — expands cascade signal to head width
-        BiGRU / CrossAttn / self-attn at 512
-
-    cascade_dim=128:
-        seq_proj: Linear(1152->512) + GELU + LN + Linear(512->128)  — two-stage compression
-        disorder_proj: Linear(128 -> 128)      — no expansion; matched dimensions
-        BiGRU / CrossAttn / self-attn at 128  — everything operates at cascade resolution
-
-Architecture difference vs cascDP_Phase2:
-    - cascade signal:   phase1.mlp_out_dim (128-dim)  vs aspp_out_dim (512-dim)
-    - Phase 1 call:     get_mlp_disorder_features()   vs get_disorder_features()
-    - cascade_dim:      configurable (default 512)    vs hardcoded 512
-
 Training:
     python -m src.cli.train_phase2_mlp_cascade \\
         --config configs/experiments/phase2_mlp_cascade/binding.yaml
@@ -78,10 +61,6 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
     """
     Phase 2 variant: cascades 128-dim MLP hidden features from Phase 1 instead
     of 512-dim ASPP features.
-
-    cascade_dim (default 512) controls the internal width of all Phase 2 head
-    layers.  Set cascade_dim=128 to operate at native MLP-cascade resolution
-    with no artificial expansion of the disorder signal.
     """
 
     def __init__(
@@ -122,7 +101,7 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
         mlp_out = phase1_model.mlp_out_dim  # 128
 
         # If cascade_dim differs from the default 512 used by the parent, rebuild
-        # all per-head layers so they operate at cascade_dim throughout.
+        # all per-head layers so they operate at cascade_dim throughout
         if cascade_dim != 512:
             self._rebuild_head_layers(
                 mlp_out=mlp_out,
@@ -150,7 +129,7 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
         dropout: float,
         use_crf_linker: bool,
     ):
-        """Rebuild all Phase 2 head layers at cascade_dim."""
+        # Rebuild all Phase 2 head layers at cascade_dim
         num_heads = max(1, cascade_dim // _MIN_HEAD_DIM)
 
         if self.use_binding_head:
@@ -235,8 +214,6 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
                 sequences=sequences,
             )
 
-            # Run Phase 1's disorder pipeline and take the 128-dim MLP hidden
-            # instead of the 512-dim ASPP output used by the standard Phase 2.
             if return_attention:
                 disorder_features, disorder_logits, esm_cross_attn_weights = (
                     self.phase1.get_mlp_disorder_features(
@@ -249,7 +226,7 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
                     self.phase1.get_mlp_disorder_features(sequence_embeddings)
                 )
 
-        # ── Binding head ──────────────────────────────────────────────────────
+        # Binding head
         if self.use_binding_head:
             binding_seq = self.binding_seq_proj(sequence_embeddings)
             binding_proj = self.binding_disorder_proj_norm(
@@ -272,7 +249,7 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
                 binding_cross + binding_seq + binding_proj
             )
 
-        # ── Linker head ───────────────────────────────────────────────────────
+        # Linker head
         if self.use_linker_head:
             linker_seq = self.linker_seq_proj(sequence_embeddings)
             linker_proj = self.linker_disorder_proj_norm(
@@ -296,7 +273,7 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
             )
             linker_features = linker_combined
 
-        # ── Binding self-attention ────────────────────────────────────────────
+        # Binding self-attention
         if self.use_binding_head:
             if return_attention:
                 binding_attn_out, binding_self_attn_weights = self.binding_self_attention(
@@ -313,7 +290,7 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
             binding_combined = self.binding_attn_norm(binding_combined + binding_attn_out)
             binding_features = binding_combined
 
-        # ── Predictions ───────────────────────────────────────────────────────
+        # Predictions
         binding_logits = self.binding_head(binding_features) if self.use_binding_head else None
 
         linker_logits = None

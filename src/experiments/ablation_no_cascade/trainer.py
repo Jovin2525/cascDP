@@ -1,18 +1,3 @@
-"""
-src/experiments/ablation_no_cascade/trainer.py
-
-Trainer for the no-disorder-cascade ablation study.
-
-Key differences from the main Trainer (src/training/trainer.py):
-  - Accepts cascDP_Ablation1 directly (no cascDP_Phase1/Phase2 type-check).
-  - disorder_logits is always None — no disorder loss or disorder metrics.
-  - Uses AblationLoss (binding + linker terms only).
-  - MetricsCalculator receives a zero-logit / zero-mask for disorder so
-    disorder buckets stay empty but the call signature is satisfied.
-  - All other behaviour (gradient accumulation, early stopping, LR schedule,
-    history JSON, composite AUC) is preserved from the main Trainer.
-"""
-
 import json
 import logging
 from pathlib import Path
@@ -27,27 +12,6 @@ from .loss import AblationLoss
 logger = logging.getLogger(__name__)
 
 class AblationTrainer:
-    """
-    Trainer for cascDP_Ablation1 (no disorder cascade).
-
-    Args:
-        model:                       cascDP_Ablation1 instance.
-        train_loader:                Training DataLoader.
-        val_loader:                  Validation DataLoader.
-        optimizer:                   PyTorch optimizer.
-        loss_fn:                     AblationLoss instance.
-        device:                      "cuda" | "cpu".
-        output_dir:                  Checkpoint / log directory.
-        gradient_accumulation_steps: Micro-steps per optimiser update.
-        max_grad_norm:               Gradient clipping threshold.
-        best_metric:                 Metric to track for best-model saving
-                                     (e.g. "binding_auc", "linker_auc", "val_loss").
-        best_metric_mode:            "min" or "max".
-        scheduler:                   Optional LR scheduler.
-        composite_auc_weights:       Optional dict for composite AUC metric.
-        model_config:                Dict saved into checkpoints for reproducibility.
-    """
-
     def __init__(
         self,
         model,

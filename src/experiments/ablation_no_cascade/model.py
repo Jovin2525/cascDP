@@ -1,23 +1,3 @@
-"""
-src/experiments/ablation_no_cascade/model.py
-
-No-disorder-cascade ablation model.
-
-Differences from cascDP_Phase2:
-  - Phase 1 is NOT instantiated.
-  - The LoRA-fine-tuned backbone is loaded directly from the Phase 1 checkpoint.
-  - Zero disorder features are fed to the function heads — raw ESM embeddings only.
-  - Function head architecture is identical to Phase 2 (BiGRU -> self-attn ->
-    CNNHead for binding; BiGRU -> ASPP for linker).
-
-To load from a Phase 1 checkpoint (recommended — reuses LoRA weights):
-    model = cascDP_Ablation1.from_phase1_checkpoint(
-        checkpoint_path="checkpoints/phase1/best_model.pt",
-        backbone=create_backbone(...),   # same config as Phase 1
-        device="cuda",
-    )
-"""
-
 import math
 import logging
 from typing import List, Optional
@@ -40,25 +20,6 @@ from ...models.fusion_modules import CrossAttentionFusion
 logger = logging.getLogger(__name__)
 
 class cascDP_Ablation1(nn.Module):
-    """
-    Ablation model: binding + linker heads on raw ESM embeddings only.
-
-    Phase 1's disorder pipeline (BiGRU -> CrossAttn -> ASPP -> MLP) is entirely
-    absent.  The backbone (ESM-C + LoRA) is the only shared component with
-    Phase 2, ensuring that any performance difference is attributable to the
-    disorder cascade alone.
-
-    Args:
-        backbone:         ProteinBackbone instance (e.g. ESMCBackbone).
-                          Should already have LoRA applied if desired.
-        device:           Device string.
-        context_type:     "bigru" | "bilstm".
-        use_binding_head: Include binding prediction head.
-        use_linker_head:  Include linker prediction head.
-        freeze_backbone:  Freeze backbone weights.  Set True to mirror the
-                          Phase 2 setup (frozen Phase 1 backbone).
-    """
-
     BINDING_TYPES = ["Protein_binding", "Nucleic_acid_binding", "Ion_binding", "Lipid_binding"]
     NUM_BINDING_TYPES = 4
 
@@ -196,10 +157,6 @@ class cascDP_Ablation1(nn.Module):
         )
 
     def _encode_sequences(self, sequences: List[str]) -> torch.Tensor:
-        """
-        Encode raw sequences into ESM embeddings.
-        Mirrors cascDP_Phase1._encode_sequences exactly.
-        """
         model = self.backbone
         # Unwrap LoRA / PEFT wrappers if needed
         if not hasattr(model, "encode") and hasattr(model, "base_model"):
@@ -250,16 +207,6 @@ class cascDP_Ablation1(nn.Module):
         embeddings: Optional[torch.Tensor] = None,
         sequences: Optional[List[str]] = None,
     ):
-        """
-        Forward pass — binding and linker from raw ESM embeddings.
-
-        No disorder cascade is applied.
-
-        Returns:
-            Tuple (None, binding_logits | None, linker_logits | None)
-            First element is always None for API compatibility with Phase 2 /
-            CascadedLoss / AblationTrainer.
-        """
         esm_emb = self.get_embeddings(embeddings=embeddings, sequences=sequences)
 
         binding_logits = None

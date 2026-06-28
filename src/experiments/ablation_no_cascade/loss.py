@@ -4,21 +4,6 @@ from typing import Dict, Optional, Tuple
 from ...training.loss import Phase2Loss
 
 class AblationLoss(nn.Module):
-    """
-    Binding + linker loss for the no-disorder-cascade ablation.
-
-    Args:
-        binding_loss_type:  "bce" | "focal"
-        linker_loss_type:   "bce" | "focal"
-        pos_weight_binding: Positive class weight for BCE binding loss.
-        pos_weight_linker:  Positive class weight for BCE linker loss.
-        idr_weight_binding: Extra loss weight on IDR residues for binding.
-        idr_weight_linker:  Extra loss weight on IDR residues for linker.
-        focal_gamma:        γ for Focal loss.
-        focal_alpha:        α for Focal loss.
-        device:             Device string.
-    """
-
     def __init__(
         self,
         binding_loss_type: str = "bce",
@@ -61,21 +46,7 @@ class AblationLoss(nn.Module):
         binding_mask: Optional[torch.Tensor] = None,
         linker_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Args:
-            binding_logits:  (B, L, 4) or None
-            linker_logits:   (B, L) | (B, L, 1) or None
-            binding_labels:  (B, L, 4)
-            linker_labels:   (B, L)
-            mask:            (B, L) valid-residue mask
-            disorder_labels: (B, L) ground-truth disorder used ONLY as IDR
-                             weighting — NOT a cascaded prediction.
-            binding_mask:    (B, L) mask restricting binding loss
-            linker_mask:     (B, L) mask restricting linker loss
-
-        Returns:
-            total_loss, loss_dict  (keys: "binding", "linker", "disorder", "total")
-        """
+        
         total_loss, loss_dict = self._loss(
             binding_logits=binding_logits,
             linker_logits=linker_logits,

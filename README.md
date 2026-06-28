@@ -11,15 +11,17 @@ Quick start (Docker):
 ```bash
 docker build -t cascdp-caid4 .
 docker run --rm \
-    -v /absolute/path/input.fasta:/work/input.fasta:ro \
-    -v /absolute/path/embeddings.h5:/work/embeddings.h5:ro \
-    -v /absolute/path/model.pt:/work/model.pt:ro \
-    -v /absolute/path/submission_out:/work/submission \
+    -v /absolute/path/to/cascDP/data/input.fasta:/work/input.fasta:ro \
+    -v /absolute/path/to/cascDP/data/embeddings.h5:/work/embeddings.h5:ro \
+    -v /absolute/path/to/cascDP/checkpoints/cascDP.pt:/work/model.pt:ro \
+    -v /absolute/path/to/cascDP/data/submission_out:/work/submission \
     cascdp-caid4 \
     --checkpoint /work/model.pt --fasta /work/input.fasta \
     --embeddings /work/embeddings.h5 --output-dir /work/submission \
     --output-prefix cascDP --tasks disorder,binding,linker --threads 24
 ```
+
+Replace `/absolute/path/to/cascDP` with the absolute path to your local repository checkout.
 
 For full submission instructions — embedding generation, input formats, local runs, per-protein embedding directories, and submission notes — see **[SUBMISSION.md](SUBMISSION.md)**.
 
@@ -251,7 +253,7 @@ python -m src.cli.evaluate_phase2_mlp_cascade \
 
 Evaluation CLIs write per-test-set CAID submissions under `<output-dir>/submissions/<test-set>/` and metrics under `<output-dir>/caid_metrics/<test-set>/`.
 
-## Prediction For Research Use
+## Prediction For Research Use - In Progress
 
 For general local prediction from FASTA, use `src.cli.predict`. This path builds the model/backbone from a training config and can optionally write plots.
 
@@ -276,14 +278,6 @@ If you use this software, please cite the official CAID publications:
 - **CAID1:** Necci M, Piovesan D, CAID Predictors, et al. Critical assessment of protein intrinsic disorder prediction. *Nat Methods*. 2021; 18: 472-481. https://doi.org/10.1038/s41592-021-01117-3
 
 The vendored CAID evaluation code is located under `third_party/caid/`. Project integration code adapts cascDP predictions to CAID-compatible input and output formats.
-
-## Utility Commands
-
-Inspect the config embedded in a checkpoint:
-
-```bash
-python -m src.cli.print_config checkpoints/unified.pt
-```
 
 ## To Note
 

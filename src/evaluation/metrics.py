@@ -32,7 +32,7 @@ class MetricsCalculator:
         self.linker_labels = []
         self.linker_probs = []
 
-        # Per-protein storage for macro (per-target) averaging.
+        # Per-protein storage for macro (per-target) averaging
         # Each maps pid -> {'probs': list, 'labels': list}.
         self.per_protein_disorder = {}
         self.per_protein_binding = {}
@@ -120,9 +120,6 @@ class MetricsCalculator:
                     bucket['labels'].extend(d_labels_i)
 
             # Binding - use binding mask (skip if None)
-            # CAID3 convention: only include proteins with >=1 positive binding
-            # residue in the masked region. All-zero proteins (confirmed non-binding)
-            # are excluded so they don't inflate AUC/APS with easy true negatives.
             if binding_probs is not None and binding_labels_np is not None and binding_mask_np is not None:
                 binding_valid = binding_mask_np[i] == 1
                 b_probs_i = binding_probs[i][binding_valid]
@@ -137,7 +134,6 @@ class MetricsCalculator:
                         bucket['labels'].extend(b_labels_i)
 
                 # Individual Binding Types -- use per-type mask when available
-                # Apply same positive-only filter per type.
                 if binding_probs_indiv_np is not None:
                     num_types = binding_probs_indiv_np.shape[-1]
                     if binding_mask_indiv_np is None:
@@ -157,7 +153,6 @@ class MetricsCalculator:
                                 bucket['labels'].extend(t_labels_i)
 
             # Linker - use linker mask (skip if None)
-            # CAID3 convention: only include proteins with >=1 positive linker residue.
             if linker_probs is not None and linker_labels_np is not None and linker_mask_np is not None:
                 linker_valid = linker_mask_np[i] == 1
                 l_probs_i = linker_probs[i][linker_valid]
@@ -172,12 +167,6 @@ class MetricsCalculator:
                         bucket['labels'].extend(l_labels_i)
     
     def compute_metrics(self) -> Dict[str, float]:
-        """
-        Compute all metrics using accumulated predictions.
-        
-        Returns:
-            Dictionary with metrics for each task
-        """
         metrics = {}
         
         # Convert to numpy arrays
@@ -220,15 +209,6 @@ class MetricsCalculator:
         )
         metrics.update(linker_metrics)
 
-        # ---- Per-target (macro) averaging — CAID3 style ----
-        # CAID3 applies a single global optimal threshold (F_max threshold from the
-        # dataset-level metrics), binarises each protein's predictions at that
-        # threshold, then computes F1 / Precision / Recall / MCC / BAC per protein
-        # and takes the mean across proteins.  Single-class proteins produce NaN for
-        # some metrics (e.g. MCC/BAC when TN=0); NaN values are skipped by nanmean,
-        # matching CAID3's implicit behaviour (ffill/bfill on a per-threshold matrix
-        # effectively propagates valid values rather than including undefined ones).
-        # Proteins with <2 valid residues are still skipped.
         binding_types = ['protein', 'nucleic_acid', 'ion', 'lipid']
         per_target_specs = [
             ('disorder', self.per_protein_disorder),
@@ -242,7 +222,7 @@ class MetricsCalculator:
         for prefix, per_protein in per_target_specs:
             if not per_protein:
                 continue
-            # Get the global optimal threshold for this task.
+            # Get the global optimal threshold for this task
             threshold = metrics.get(f'{prefix}_optimal_threshold', 0.5)
             if threshold is None or (isinstance(threshold, float) and math.isnan(threshold)):
                 threshold = 0.5
@@ -319,9 +299,6 @@ class MetricsCalculator:
         """
         metrics = {}
 
-        # Default NaN keys (returned when sample-set is empty or single-class).
-        # CAID3 reports: AUC, APS, F_max + optimal threshold, precision/recall
-        # at F_max, MCC at F_max, BAC at F_max.
         nan_keys = [
             f'{prefix}_auc', f'{prefix}_aps', f'{prefix}_f_max',
             f'{prefix}_optimal_threshold', f'{prefix}_precision',
@@ -381,8 +358,7 @@ class MetricsCalculator:
         metrics[f'{prefix}_precision'] = optimal_precision
         metrics[f'{prefix}_recall'] = optimal_recall
 
-        # Threshold-dependent metrics at the F-max threshold (CAID3 convention).
-        # Binarization uses '>=' to match sklearn semantics.
+        # Threshold-dependent metrics at the F-max threshold
         preds = (probs >= optimal_threshold).astype(int)
         try:
             metrics[f'{prefix}_mcc'] = matthews_corrcoef(labels, preds)
@@ -396,15 +372,6 @@ class MetricsCalculator:
         return metrics
     
     def format_metrics(self, metrics: Dict[str, float]) -> str:
-        """
-        Format metrics dictionary into readable string.
-        
-        Args:
-            metrics: Dictionary from compute_metrics()
-        
-        Returns:
-            Formatted string
-        """
         import math
         
         lines = []
@@ -436,7 +403,6 @@ class MetricsCalculator:
                 lines.append(f"  Recall:    {fmt(metrics.get(f'{prefix}_recall'))}")
             lines.append(f"  MCC:       {fmt(metrics.get(f'{prefix}_mcc'))}")
             lines.append(f"  BAC:       {fmt(metrics.get(f'{prefix}_bac'))}")
-            # Per-target (macro) averaged metrics — CAID3 style:
             # binary stats at global optimal threshold, nanmean across proteins.
             if not math.isnan(metrics.get(f'{prefix}_f1_per_target', float('nan'))):
                 lines.append(f"  -- per-target avg ({metrics.get(f'{prefix}_n_targets', 0):.0f} proteins, thr={fmt(metrics.get(f'{prefix}_optimal_threshold'), 3)}) --")

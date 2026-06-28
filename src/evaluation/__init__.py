@@ -1,5 +1,3 @@
-"""Evaluation metrics for cascDP model."""
-
 __all__ = ['MetricsCalculator']
 
 def __getattr__(name):
@@ -9,4 +7,3 @@ def __getattr__(name):
 		return MetricsCalculator
 
 	raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-

@@ -1,7 +1,3 @@
-"""
-cascDP - Cascaded Disorder & Function Prediction for Intrinsically Disordered Proteins.
-"""
-
 __version__ = "0.1.0"
 
 __all__ = [
@@ -13,7 +9,6 @@ __all__ = [
     'EmbeddingGenerator',
     'FUNCTIONAL_CLASS_MAPPING_99',
 ]
-
 
 def __getattr__(name):
     if name in {
