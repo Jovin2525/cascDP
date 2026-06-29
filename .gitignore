@@ -46,3 +46,6 @@ docs/diagrams/
 # Binary export artifacts
 *.pdf
 *.png
+
+# Configs: only specific files are tracked, ignore the rest
+configs/

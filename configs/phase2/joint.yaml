@@ -1,8 +1,6 @@
 # Phase 2: Joint Binding + Linker Training
 # Focus: Train both heads simultaneously (per-head disorder_proj makes this equivalent to separate training)
 # No merge step needed — single checkpoint contains both heads.
-# Dataset: Uses filtered proteins with linker/binding annotations (~39% of DisProt)
-# Usage:   python -m src.cli.train --config configs/phase2/joint.yaml
 
 data:
   embedding_mode: "on_the_fly"
@@ -18,7 +16,7 @@ model:
   # Phase 1 Model (Must match checkpoint architecture!)
   phase1_context_type: bilstm
 
-  # Phase 2 Function Heads
+  # Phase 2 Function Heads - bilstm or bigru
   phase2_context_type: bigru
 
   # Phase 1 checkpoint to load (required for Phase 2)

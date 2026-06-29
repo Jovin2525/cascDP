@@ -138,15 +138,8 @@ Other Phase 1 configs:
 
 ```bash
 python -m src.cli.train --config configs/phase1/disorder_300m.yaml
-python -m src.cli.train --config configs/phase1/disorder_gate.yaml
 python -m src.cli.train --config configs/phase1/disprot_only.yaml
 python -m src.cli.train --config configs/phase1/pdb_only.yaml
-```
-
-Recycle variant:
-
-```bash
-python -m src.cli.train_recycle --config configs/phase1/recycle.yaml
 ```
 
 ### Phase 2 Binding And Linker

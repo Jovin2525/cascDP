@@ -1,10 +1,3 @@
-# Phase 2: Binding-Only Training  (Separate Training Strategy — Step 2 of 2)
-# Focus: Train binding head in isolation; merge later with linker checkpoint.
-# See also: configs/phase2/linker.yaml
-# Merge:    python -m src.cli.merge_phase2 --binding_ckpt ... --linker_ckpt ... --output ...
-# Dataset:  Uses filtered proteins with linker/binding annotations only (~39% of DisProt)
-# Usage:    python -m src.cli.train --config configs/phase2/binding.yaml
-
 data:
   embedding_mode: "on_the_fly"
   train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_phase2_any_data.txt"
@@ -19,7 +12,7 @@ model:
   # Phase 1 Model (Must match checkpoint architecture!)
   phase1_context_type: bigru
 
-  # Phase 2 Function Heads
+  # Phase 2 Function Heads - bilstm or bigru
   phase2_context_type: bilstm
   
   # Phase 1 checkpoint to load (required for Phase 2)

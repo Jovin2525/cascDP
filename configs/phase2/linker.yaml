@@ -1,14 +1,5 @@
-# Phase 2: Linker-Only Training  (Separate Training Strategy — Step 1 of 2)
-# Focus: Train linker head in isolation; merge later with binding checkpoint.
-# See also: configs/phase2/binding.yaml
-# Merge:    python -m src.cli.merge_phase2 --binding_ckpt ... --linker_ckpt ... --output ...
-# Dataset:  Uses filtered proteins with linker/binding annotations only (~39% of DisProt)
-# Usage:    python -m src.cli.train --config configs/phase2/linker.yaml
-
 data:
   embedding_mode: "on_the_fly"
-  # train_disorder_file: "data/final_cleaned_dataset/train_data.txt"
-  # val_disorder_file: "data/final_cleaned_dataset/val_data.txt"
   train_disorder_file: "data/final_cleaned_dataset/train_final_update_or_caid4_phase2_any_data.txt"
   val_disorder_file: "data/final_cleaned_dataset/val_final_update_or_caid4_phase2_any_data.txt"
 
@@ -21,7 +12,7 @@ model:
   # Phase 1 Model (Must match checkpoint architecture!)
   phase1_context_type: bigru
   
-  # Phase 2 Function Heads (Can be different)
+  # Phase 2 Function Heads - bilstm or bigru
   phase2_context_type: bilstm
   
   # Phase 1 checkpoint to load (required for Phase 2)
@@ -30,9 +21,7 @@ model:
   # Phase 2 specific settings
   use_binding_head: false  # Linker-only training; binding is trained separately
   use_linker_head: true    # Enable linker head
-  
-  # CRF Configuration
-  # Enable Conditional Random Field for structured prediction of linker regions
+
   use_crf_linker: false
 
   # LoRA Configuration (must match Phase 1 checkpoint)
@@ -51,7 +40,7 @@ training:
   num_epochs: 50
   batch_size: 8
   gradient_accumulation_steps: 4
-  idr_weight_linker: 1.0          # Penalize linker errors in IDRs (upweight residues where disorder = 1) - not used if crf enabled
+  idr_weight_linker: 1.0 # Penalize linker errors in IDRs (upweight residues where disorder = 1) - not used if crf enabled
 
   # Loss Configuration
   loss_type: "focal"  # Focal loss for linker prediction
@@ -61,10 +50,10 @@ training:
   # focal_positives_only: false -> denominator = all valid linker tokens (established tuned scale)
   # focal_positives_only: true  -> denominator = positives only (larger loss scale; retune lr/alpha)
   focal_positives_only: false
-  linker_gaussian_sigma: 2.0       # Gaussian label smoothing for linker boundaries (like Phase 1 disorder)
-  pos_weight_linker: 45.0   # ≈ (1 - 0.0218) / 0.0218
+  linker_gaussian_sigma: 2.0 # Gaussian label smoothing for linker boundaries (like Phase 1 disorder)
+  pos_weight_linker: 45.0   # Approx (1 - 0.0218) / 0.0218
 
-  # Optimizer - lower LR for fine-tuning
+  # Optimizer
   optimizer:
     type: "AdamW"
     lr: 1.0e-4
@@ -82,7 +71,7 @@ training:
   early_stopping_patience: 5
   
   # Phase 2: Track linker metrics
-  best_metric: "val_linker_loss" # "val_linker_auc" # "val_linker_loss"        # linker-only; was "val_composite_auc" for unified
+  best_metric: "val_linker_loss" # "val_linker_auc" # "val_linker_loss"
   best_metric_mode: "min"
   
   num_workers: 2

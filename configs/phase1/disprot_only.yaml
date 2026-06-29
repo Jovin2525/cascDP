@@ -1,7 +1,3 @@
-# Phase 1 Ablation: DisProt-Only Training
-# Tests disorder prediction using only curated DisProt data (1,703 train / 531 val / 542 test)
-# Usage: python -m src.cli.train --config configs/phase1/disprot_only.yaml
-
 data:
   embedding_mode: "on_the_fly"
   train_disorder_file: "data/final_cleaned_dataset/train_disprot_only.txt"
@@ -38,8 +34,7 @@ training:
   use_class_weights: false
   disorder_loss_type: "bce"
   gaussian_sigma: 2.0
-  # Boundary aux: extra focal loss on D<->O transition residues (works with bce/focal/CRF).
-  # Counteracts gaussian_sigma — tune together. Recommended: 0.1–0.3 to enable.
+
   boundary_aux_weight: 0.0
   boundary_radius: 2
   focal_gamma: 1.5
