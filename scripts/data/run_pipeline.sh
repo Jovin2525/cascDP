@@ -27,11 +27,11 @@ usage() {
 Usage: bash scripts/data/run_pipeline.sh [options]
 
 Chains the data-prep modules:
-  1. src.data.preprocessing.fetch_pdb_entity_ids       → entity ID list
-  2. src.data.preprocessing.create_pdb_missing_dataset → clustered PDB_missing dataset
-  3. src.data.preprocessing.create_dataset_new_caid4   → DisProt+PDB_missing merge,
-       CAID3 exact-filter, master cluster, 60/20/20 split → *_unaltered_data.txt
-  4. src.data.preprocessing.filter_phase2_dataset      → Phase 2 filtered splits
+  1. src.data.preprocessing.fetch_pdb_entity_ids       -> entity ID list
+  2. src.data.preprocessing.create_pdb_missing_dataset -> clustered PDB_missing dataset
+  3. src.data.preprocessing.create_dataset_new_caid4   -> DisProt+PDB_missing merge,
+       CAID3 exact-filter, master cluster, 60/20/20 split -> *_unaltered_data.txt
+  4. src.data.preprocessing.filter_phase2_dataset      -> Phase 2 filtered splits
 
 Step skip flags (each step is opt-out):
   --skip-fetch              Use existing --ids file; skip step 1.
@@ -108,7 +108,7 @@ echo
 
 # Step 1: fetch entity IDs
 if [[ $SKIP_FETCH -eq 0 ]]; then
-  echo "==> Step 1/4: fetch_pdb_entity_ids → $IDS_PATH"
+  echo "==> Step 1/4: fetch_pdb_entity_ids -> $IDS_PATH"
   "$PYTHON_BIN" -m src.data.preprocessing.fetch_pdb_entity_ids --output "$IDS_PATH"
 else
   echo "==> Step 1/4: SKIPPED"
@@ -122,7 +122,7 @@ echo
 
 # Step 2: build PDB_missing dataset
 if [[ $SKIP_BUILD -eq 0 ]]; then
-  echo "==> Step 2/4: create_pdb_missing_dataset → $OUTPUT_PATH"
+  echo "==> Step 2/4: create_pdb_missing_dataset -> $OUTPUT_PATH"
   mkdir -p "$(dirname "$OUTPUT_PATH")" "$(dirname "$RAW_PATH")"
   "$PYTHON_BIN" -m src.data.preprocessing.create_pdb_missing_dataset \
     --ids "$IDS_PATH" \
@@ -134,7 +134,7 @@ fi
 echo
 
 # Step 3: merge DisProt + PDB_missing, filter CAID3 (exact-match),
-#           cluster master pool, 60/20/20 split → *_unaltered_data.txt
+#           cluster master pool, 60/20/20 split -> *_unaltered_data.txt
 if [[ $SKIP_MERGE -eq 0 ]]; then
   echo "==> Step 3/4: src.data.preprocessing.create_dataset_new_caid4 (DisProt merge + master cluster + split)"
   "$PYTHON_BIN" -m src.data.preprocessing.create_dataset_new_caid4

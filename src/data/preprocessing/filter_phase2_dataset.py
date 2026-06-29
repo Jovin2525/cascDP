@@ -98,7 +98,7 @@ def main():
         '--prefix',
         type=str,
         default='final_update_or_caid4',
-        help='Filename infix, e.g. "final_update_or_caid4" → {split}_{prefix}_unaltered_data.txt'
+        help='Filename infix, e.g. "final_update_or_caid4" -> {split}_{prefix}_unaltered_data.txt'
     )
     args = parser.parse_args()
 
@@ -128,8 +128,8 @@ def main():
         pct = 100.0 * kept / total if total > 0 else 0.0
 
         print(
-            f"[{split}]  {total:>6,} total  →  {kept:>5,} kept "
-            f"({pct:.1f}%)  |  {dropped:>5,} dropped  →  {output_file.name}"
+            f"[{split}]  {total:>6,} total  ->  {kept:>5,} kept "
+            f"({pct:.1f}%)  |  {dropped:>5,} dropped  ->  {output_file.name}"
         )
 
 if __name__ == '__main__':

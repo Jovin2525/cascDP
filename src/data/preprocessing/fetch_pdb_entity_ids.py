@@ -65,7 +65,7 @@ def fetch_entity_ids(output_file: str):
         for eid in entity_ids:
             f.write(f"{eid}\n")
 
-    print(f"Saved {len(entity_ids):,} entity IDs → {output_path}")
+    print(f"Saved {len(entity_ids):,} entity IDs -> {output_path}")
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch PDB polymer entity IDs")
