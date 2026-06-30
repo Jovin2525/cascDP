@@ -113,9 +113,6 @@ def load_model(checkpoint_path: str, device: str = "cpu"):
 
     checkpoint_keys = list(checkpoint["model_state_dict"].keys())
     is_phase2 = any("binding_head" in key or "linker_head" in key for key in checkpoint_keys)
-    use_crf = any("phase1.crf.transitions" in key for key in checkpoint_keys) if is_phase2 else any(
-        "crf.transitions" in key for key in checkpoint_keys
-    )
 
     if is_phase2:
         is_recycled_phase1 = any("phase1.recycle_proj" in key for key in checkpoint_keys)
@@ -125,7 +122,6 @@ def load_model(checkpoint_path: str, device: str = "cpu"):
                 backbone=backbone,
                 device=device,
                 context_type=phase1_context_type,
-                use_crf=use_crf,
                 num_recycles=num_recycles,
             )
         else:
@@ -133,7 +129,6 @@ def load_model(checkpoint_path: str, device: str = "cpu"):
                 backbone=backbone,
                 device=device,
                 context_type=phase1_context_type,
-                use_crf=use_crf,
                 fusion_type=model_cfg.get("fusion_type", "sum"),
             )
 
@@ -141,7 +136,6 @@ def load_model(checkpoint_path: str, device: str = "cpu"):
         if "use_linker_head" not in model_cfg:
             raise ValueError("Phase 2 checkpoint model_config must contain 'use_linker_head'")
         use_linker_head = model_cfg["use_linker_head"]
-        use_crf_linker = model_cfg.get("use_crf_linker", False)
         phase2_context_type, binding_context_type, linker_context_type = cascDP_Phase2.resolve_context_types(model_cfg)
 
         model = cascDP_Phase2(
@@ -152,7 +146,6 @@ def load_model(checkpoint_path: str, device: str = "cpu"):
             linker_context_type=linker_context_type,
             use_binding_head=use_binding_head,
             use_linker_head=use_linker_head,
-            use_crf_linker=use_crf_linker,
             binding_combined=model_cfg.get("binding_combined", False),
             binding_head_type=model_cfg.get("binding_head_type", "cnn"),
         )
@@ -161,7 +154,6 @@ def load_model(checkpoint_path: str, device: str = "cpu"):
             backbone=backbone,
             device=device,
             context_type=phase1_context_type,
-            use_crf=use_crf,
             fusion_type=model_cfg.get("fusion_type", "sum"),
         )
 
@@ -194,11 +186,6 @@ def forward_model(model, embeddings: torch.Tensor):
         disorder_logits = outputs
         binding_logits = None
         linker_logits = None
-
-    if disorder_logits is not None and disorder_logits.shape[-1] == 2:
-        disorder_logits = disorder_logits[..., 1:2] - disorder_logits[..., 0:1]
-    if linker_logits is not None and linker_logits.shape[-1] == 2:
-        linker_logits = linker_logits[..., 1:2] - linker_logits[..., 0:1]
 
     return disorder_logits, binding_logits, linker_logits
 
@@ -348,6 +335,24 @@ def main() -> None:
     model, saved_thresholds = load_model(args.checkpoint, device=device)
 
     dataset = SubmissionEmbeddingDataset(args.embeddings, args.fasta)
+    if len(dataset) == 0:
+        fasta_count = len(dataset.sequence_ids)
+        embedding_count = len(dataset.available_embedding_ids)
+        if embedding_count == 0:
+            raise SystemExit(
+                "No usable embeddings found. "
+                f"FASTA contains {fasta_count} proteins, but --embeddings {args.embeddings} "
+                "contains 0 readable embedding IDs. Check the --embeddings path or Docker bind mount; "
+                "if mounting a single HDF5 file, verify the host file exists and is not being mounted "
+                "as an empty directory."
+            )
+
+        raise SystemExit(
+            "No FASTA protein IDs match embedding IDs. "
+            f"FASTA contains {fasta_count} proteins and --embeddings {args.embeddings} "
+            f"contains {embedding_count} readable embedding IDs, but overlap is 0. "
+            "Check that the FASTA file and embedding file are from the same split and use matching IDs."
+        )
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,

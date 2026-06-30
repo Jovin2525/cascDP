@@ -92,25 +92,18 @@ def create_dataloaders(config: dict, backbone=None):
         _disorder_loss = config['training'].get('disorder_loss_type', _global_loss)
         _linker_loss   = config['training'].get('linker_loss_type',   _global_loss)
         _binding_loss  = config['training'].get('binding_loss_type',  _global_loss)
-        _disorder_crf  = config['model'].get('use_crf', False)
-        _linker_crf    = config['model'].get('use_crf_linker', False)
-        # Focal is active for a task only if that task's loss_type is focal and it does not use CRF
         _focal_tasks = []
-        if _disorder_loss == 'focal' and not _disorder_crf:
+        if _disorder_loss == 'focal':
             _focal_tasks.append('disorder')
         if _binding_loss == 'focal':
             _focal_tasks.append('binding')
-        if _linker_loss == 'focal' and not _linker_crf:
+        if _linker_loss == 'focal':
             _focal_tasks.append('linker')
-        _crf_tasks = [t for t, flag in [('disorder', _disorder_crf), ('linker', _linker_crf)] if flag]
         if _focal_tasks:
             logger.info(
                 f"Using Focal Loss (alpha={config['training'].get('focal_alpha', 0.25)}) "
                 f"for tasks: {', '.join(_focal_tasks)}"
-                + (f" | CRF active for: {', '.join(_crf_tasks)}" if _crf_tasks else "")
             )
-        elif _crf_tasks:
-            logger.info(f"CRF active for: {', '.join(_crf_tasks)} (focal loss not used for any task)")
     
     embedding_mode = config['data'].get('embedding_mode', 'precomputed')
     effective_num_workers = 0 if embedding_mode == 'on_the_fly' else config['training'].get('num_workers', 0)
@@ -191,7 +184,6 @@ def create_model(config: dict, device: str):
             device=device,
             context_type=config['model'].get('context_type', 'bigru'),
             dropout=config['model'].get('dropout', 0.5),
-            use_crf=config['model'].get('use_crf', False),
             freeze_backbone=config['model'].get('freeze_backbone', False),
             disorder_prior=config['model'].get('disorder_prior', 0.1024),
             fusion_type=config['model'].get('fusion_type', 'sum'),
@@ -203,19 +195,11 @@ def create_model(config: dict, device: str):
         
         # Determine Phase 1 configuration from checkpoint if possible
         phase1_checkpoint = config['model'].get('phase1_checkpoint', None)
-        phase1_use_crf = config['model'].get('use_crf', False) # Default to config, override if checkpoint found
         
         checkpoint = None
         if phase1_checkpoint:
              logger.info(f"Loading Phase 1 checkpoint: {phase1_checkpoint}")
              checkpoint = torch.load(phase1_checkpoint, map_location=device, weights_only=False)
-             
-             # Detect CRF from checkpoint keys if not explicitly in config
-             checkpoint_keys = checkpoint['model_state_dict'].keys()
-             detected_crf = any('crf.transitions' in key for key in checkpoint_keys)
-             if detected_crf:
-                 logger.info("Detected CRF in Phase 1 checkpoint - overriding config to use_crf=True")
-                 phase1_use_crf = True
         
         # Determine Phase 1 context type
         # Priority: Checkpoint Config > Explicit Config > Default
@@ -240,7 +224,6 @@ def create_model(config: dict, device: str):
                 device=device,
                 context_type=phase1_context_type,
                 dropout=config['model'].get('dropout', 0.5),
-                use_crf=phase1_use_crf,
                 num_recycles=num_recycles,
             )
         else:
@@ -249,7 +232,6 @@ def create_model(config: dict, device: str):
                 device=device,
                 context_type=phase1_context_type,
                 dropout=config['model'].get('dropout', 0.5),
-                use_crf=phase1_use_crf,
                 fusion_type=config['model'].get('fusion_type', 'sum'),
             )
 
@@ -268,7 +250,6 @@ def create_model(config: dict, device: str):
             dropout=config['model'].get('dropout', 0.2),
             use_binding_head=config['model'].get('use_binding_head', True),
             use_linker_head=config['model'].get('use_linker_head', True),
-            use_crf_linker=config['model'].get('use_crf_linker', False),
             binding_combined=config['model'].get('binding_combined', False),
             binding_head_type=config['model'].get('binding_head_type', 'cnn'),
             binding_priors=config['model'].get('binding_priors'),
@@ -361,18 +342,6 @@ def main():
     logger.info(f"Total parameters: {total_params:,}")
     logger.info(f"Trainable parameters: {trainable_params:,} ({100*trainable_params/total_params:.2f}%)")
     
-    # Extract CRFs if available
-    disorder_crf = None
-    linker_crf = None
-    
-    if hasattr(model, 'crf'): # Phase 1
-        disorder_crf = model.crf
-    elif hasattr(model, 'phase1') and hasattr(model.phase1, 'crf'): # Phase 2
-        disorder_crf = model.phase1.crf
-        
-    if hasattr(model, 'linker_crf'): # Phase 2
-        linker_crf = model.linker_crf
-
     # Create loss function
     # Prefer config weights if specified, otherwise use computed/None
     pos_weight_disorder = config['training'].get('pos_weight_disorder', disorder_weight)
@@ -397,8 +366,6 @@ def main():
         device=device,
         idr_weight_binding=config['training'].get('idr_weight_binding', 1.0),
         idr_weight_linker=config['training'].get('idr_weight_linker', 1.0),
-        disorder_crf=disorder_crf,
-        linker_crf=linker_crf,
         # Granular loss type config
         disorder_loss_type=config['training'].get('disorder_loss_type', None),
         binding_loss_type=config['training'].get('binding_loss_type', None),

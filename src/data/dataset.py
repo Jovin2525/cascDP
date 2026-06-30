@@ -287,6 +287,8 @@ class SubmissionEmbeddingDataset(Dataset):
 
         sequence_ids = set(self.sequences.keys())
         available_embeddings = _list_available_embedding_ids(self.embedding_dir)
+        self.sequence_ids = sequence_ids
+        self.available_embedding_ids = available_embeddings
 
         if protein_ids is not None:
             missing_sequences = sorted(set(protein_ids) - sequence_ids)

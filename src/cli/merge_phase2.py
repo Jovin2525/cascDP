@@ -57,7 +57,6 @@ def build_phase1(model_config: dict, device: str) -> cascDP_Phase1:
         device=device,
         context_type=model_config.get('phase1_context_type', 'bigru'),
         dropout=model_config.get('dropout', 0.5),
-        use_crf=model_config.get('use_crf', False),
     )
     return phase1
 
@@ -108,7 +107,6 @@ def main():
         context_type=phase2_context_type,
         binding_context_type=binding_context_type,
         linker_context_type=linker_context_type,
-        use_crf_linker=linker_config.get('use_crf_linker', False),
         binding_combined=binding_config.get('binding_combined', False),
         binding_head_type=binding_config.get('binding_head_type', 'cnn'),
     )
@@ -120,7 +118,6 @@ def main():
     unified_config['phase2_context_type'] = phase2_context_type
     unified_config['binding_context_type'] = binding_context_type
     unified_config['linker_context_type'] = linker_context_type
-    unified_config['use_crf_linker'] = linker_config.get('use_crf_linker', False)
     unified_config['binding_combined'] = binding_config.get('binding_combined', False)
     unified_config['binding_head_type'] = binding_config.get('binding_head_type', 'cnn')
     unified_config['architecture_version'] = '2.3'

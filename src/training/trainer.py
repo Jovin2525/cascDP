@@ -333,17 +333,17 @@ class Trainer:
                     combined_binding_logits = torch.logit(combined_binding_probs.clamp(1e-7, 1 - 1e-7))
                     binding_logits_for_metrics = binding_logits
             
-            # Handle CRF outputs
-            if disorder_logits.dim() == 3 and disorder_logits.shape[-1] == 2:
-                disorder_logits_for_metrics = (disorder_logits[:, :, 1:2] - disorder_logits[:, :, 0:1])  # Keep shape (B, L, 1)
+            # Handle disorder logits for metrics
+            if disorder_logits.dim() == 3 and disorder_logits.shape[-1] == 1:
+                disorder_logits_for_metrics = disorder_logits
             else:
-                # Standard case: (B, L) or (B, L, 1)
+                # Standard case: (B, L)
                 disorder_logits_for_metrics = disorder_logits
             
-            # Handle CRF output for Linker
+            # Handle linker logits for metrics
             if not self.is_phase1 and linker_logits is not None:
-                if linker_logits.dim() == 3 and linker_logits.shape[-1] == 2:
-                    linker_logits_for_metrics = (linker_logits[:, :, 1:2] - linker_logits[:, :, 0:1])
+                if linker_logits.dim() == 3 and linker_logits.shape[-1] == 1:
+                    linker_logits_for_metrics = linker_logits
                 else:
                      linker_logits_for_metrics = linker_logits
             else:

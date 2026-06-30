@@ -115,18 +115,11 @@ def create_model(config: dict, device: str) -> cascDP_Phase2_MLPCascade:
     )
 
     phase1_checkpoint = config["model"].get("phase1_checkpoint")
-    phase1_use_crf = config["model"].get("use_crf", False)
 
     checkpoint = None
     if phase1_checkpoint:
         logger.info(f"Loading Phase 1 checkpoint: {phase1_checkpoint}")
         checkpoint = torch.load(phase1_checkpoint, map_location=device, weights_only=False)
-        detected_crf = any(
-            "crf.transitions" in k for k in checkpoint["model_state_dict"].keys()
-        )
-        if detected_crf:
-            logger.info("Detected CRF in Phase 1 checkpoint")
-            phase1_use_crf = True
 
     phase1_context_type = config["model"].get("phase1_context_type", config["model"].get("context_type", "bigru"))
     if checkpoint and "model_config" in checkpoint:
@@ -149,7 +142,6 @@ def create_model(config: dict, device: str) -> cascDP_Phase2_MLPCascade:
             device=device,
             context_type=phase1_context_type,
             dropout=config["model"].get("dropout", 0.5),
-            use_crf=phase1_use_crf,
             num_recycles=num_recycles,
         )
     else:
@@ -158,7 +150,6 @@ def create_model(config: dict, device: str) -> cascDP_Phase2_MLPCascade:
             device=device,
             context_type=phase1_context_type,
             dropout=config["model"].get("dropout", 0.5),
-            use_crf=phase1_use_crf,
         )
 
     if checkpoint:
@@ -174,7 +165,6 @@ def create_model(config: dict, device: str) -> cascDP_Phase2_MLPCascade:
         dropout=config["model"].get("dropout", 0.2),
         use_binding_head=config["model"].get("use_binding_head", True),
         use_linker_head=config["model"].get("use_linker_head", True),
-        use_crf_linker=config["model"].get("use_crf_linker", False),
         cascade_dim=config["model"].get("cascade_dim", 512),
     )
     return model
@@ -227,7 +217,6 @@ def main():
     logger.info(f"Train batches: {len(train_loader)}  Val batches: {len(val_loader)}")
 
     # Loss
-    linker_crf = getattr(model, "linker_crf", None)
     loss_fn = CascadedLoss(
         pos_weight_disorder=None,
         pos_weight_binding=None,
@@ -238,8 +227,6 @@ def main():
         device=device,
         idr_weight_binding=config["training"].get("idr_weight_binding", 1.0),
         idr_weight_linker=config["training"].get("idr_weight_linker", 1.0),
-        disorder_crf=None,
-        linker_crf=linker_crf,
         disorder_loss_type=config["training"].get("disorder_loss_type", None),
         binding_loss_type=config["training"].get("binding_loss_type", None),
         linker_loss_type=config["training"].get("linker_loss_type", None),

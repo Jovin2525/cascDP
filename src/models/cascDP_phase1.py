@@ -6,7 +6,6 @@ import logging
 from .backbone import ProteinBackbone
 from .context_modules import BiGRUContext, ASPPBlock, BiLSTMContext, CNNHead
 from .fusion_modules import CrossAttentionFusion
-from torchcrf import CRF
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,6 @@ class cascDP_Phase1(nn.Module):
         device: str = "cuda",
         context_type: str = "bigru",
         dropout: float = 0.5,
-        use_crf: bool = False,
         freeze_backbone: bool = False,
         disorder_prior: float = 0.1159,
         fusion_type: str = "sum",
@@ -41,8 +39,7 @@ class cascDP_Phase1(nn.Module):
         
         self.context_type = context_type
         self.dropout = dropout
-        self.use_crf = use_crf
-        
+
         # Local context modeling
         if self.context_type == "bilstm":
             self.local_context = BiLSTMContext(
@@ -125,16 +122,11 @@ class cascDP_Phase1(nn.Module):
             nn.Dropout(dropout)
         )
 
-        if self.use_crf:
-            self.disorder_initial = nn.Linear(128, 2) # 2 states for Binary CRF
-            self.crf = CRF(2, batch_first=True)
-            logger.info("Phase 1: Using CRF for disorder prediction with Deep Head")
-        else:
-            self.disorder_initial = nn.Linear(128, 1)
-            # Initialize disorder bias from dataset prior
-            disorder_bias = -math.log((1 - disorder_prior) / disorder_prior)
-            torch.nn.init.constant_(self.disorder_initial.bias, disorder_bias)
-            logger.info(f"Phase 1: Initialized disorder bias to {disorder_bias:.4f} (prior={disorder_prior:.4f})")
+        self.disorder_initial = nn.Linear(128, 1)
+        # Initialize disorder bias from dataset prior
+        disorder_bias = -math.log((1 - disorder_prior) / disorder_prior)
+        torch.nn.init.constant_(self.disorder_initial.bias, disorder_bias)
+        logger.info(f"Phase 1: Initialized disorder bias to {disorder_bias:.4f} (prior={disorder_prior:.4f})")
 
         # Output dim of the MLP funnel — used by Phase 2 MLP-cascade experiments
         self.mlp_out_dim = self.disorder_initial.in_features  # 128

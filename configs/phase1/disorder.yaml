@@ -22,11 +22,6 @@ model:
   #   alpha — Variant B: learned per-channel static blend
   fusion_type: sum
 
-  # CRF Configuration
-  # Enable Conditional Random Field for structured prediction of disorder
-  # DISABLED: CRF does not support masked (skipped) residues within sequences (e.g. from PDB filtering)
-  use_crf: false
-
   # LoRA Configuration
   freeze_backbone: false
   use_lora: true  # Set to true for parameter-efficient fine-tuning

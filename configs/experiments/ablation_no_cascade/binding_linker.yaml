@@ -13,7 +13,7 @@ model:
   backbone_name: "esmc_600m"
   dropout: 0.2
 
-  phase1_checkpoint: "./checkpoints/phase1/updated_crf_crossattn_bilstm.pt"
+  phase1_checkpoint: "checkpoints/phase1/best_model_bce_gauss_01_esm_unfrozen_v5_pdb01_lr3e5_bigru.pt"
 
   context_type: bilstm
 

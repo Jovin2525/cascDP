@@ -29,7 +29,6 @@ from ...models.cascDP_phase1 import cascDP_Phase1
 from ...models.cascDP_phase2 import cascDP_Phase2
 from ...models.context_modules import BiGRUContext, BiLSTMContext, CNNHead, ASPPBlock
 from ...models.fusion_modules import CrossAttentionFusion
-from torchcrf import CRF
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +72,6 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
         dropout: float = 0.2,
         use_binding_head: bool = True,
         use_linker_head: bool = True,
-        use_crf_linker: bool = False,
         cascade_dim: int = 512,
     ):
         # The parent __init__ reads phase1_model.aspp_out_dim to determine disorder_dim
@@ -91,7 +89,6 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
                 dropout=dropout,
                 use_binding_head=use_binding_head,
                 use_linker_head=use_linker_head,
-                use_crf_linker=use_crf_linker,
             )
         finally:
             # Always restore, even if super().__init__() raises
@@ -107,7 +104,6 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
                 mlp_out=mlp_out,
                 cascade_dim=cascade_dim,
                 dropout=dropout,
-                use_crf_linker=use_crf_linker,
             )
             self.to(device)
             trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -127,7 +123,6 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
         mlp_out: int,
         cascade_dim: int,
         dropout: float,
-        use_crf_linker: bool,
     ):
         # Rebuild all Phase 2 head layers at cascade_dim
         num_heads = max(1, cascade_dim // _MIN_HEAD_DIM)
@@ -182,7 +177,7 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
                 dropout=dropout,
             )
             self.linker_esm_norm = nn.LayerNorm(cascade_dim)
-            linker_output_dim = 2 if use_crf_linker else 1
+            linker_output_dim = 1
             self.linker_head = ASPPBlock(
                 in_dim=cascade_dim,
                 out_dim=cascade_dim,
@@ -190,10 +185,9 @@ class cascDP_Phase2_MLPCascade(cascDP_Phase2):
                 dilations=(2, 4, 8),
             )
             self.linker_final = nn.Linear(cascade_dim, linker_output_dim)
-            if not use_crf_linker:
-                linker_prior = 0.0218
-                linker_bias = -math.log((1 - linker_prior) / linker_prior)
-                nn.init.constant_(self.linker_final.bias, linker_bias)
+            linker_prior = 0.0218
+            linker_bias = -math.log((1 - linker_prior) / linker_prior)
+            nn.init.constant_(self.linker_final.bias, linker_bias)
 
     def forward(
         self,

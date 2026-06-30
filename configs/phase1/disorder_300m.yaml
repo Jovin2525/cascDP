@@ -21,7 +21,6 @@ model:
   #   gate  — Variant A: per-residue learned bottleneck gate
   #   alpha — Variant B: learned per-channel static blend
   fusion_type: sum
-  use_crf: false
 
   # LoRA Configuration
   freeze_backbone: false

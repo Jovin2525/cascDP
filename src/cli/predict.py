@@ -103,29 +103,14 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
     # Detect model phase from checkpoint keys
     is_phase2 = any('binding_' in key or 'linker_' in key for key in checkpoint_keys)
     
-    # Determine if CRF was used based on checkpoint keys
-    if is_phase2:
-        # For Phase 2 model, Phase 1 CRF keys would be under 'phase1.crf'
-        use_crf = any('phase1.crf.transitions' in key for key in checkpoint_keys)
-    else:
-        # For Phase 1 model, keys are at root
-        use_crf = any('crf.transitions' in key for key in checkpoint_keys)
-
-    if use_crf:
-        logging.info("Detected CRF in checkpoint (Phase 1)")
-
     if is_phase2:
         logging.info("Detected Phase 2 model (function heads)")
-        use_crf_linker = model_cfg.get('use_crf_linker', False)
-        if use_crf_linker:
-            logging.info("Using Linker CRF from checkpoint config")
         
         # Create Phase 1 model first
         phase1_model = cascDP_Phase1(
             backbone=backbone,
             device=device,
             context_type=phase1_context_type,
-            use_crf=use_crf,
         )
         
         if 'use_linker_head' not in model_cfg:
@@ -147,7 +132,6 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
             linker_context_type=linker_context_type,
             use_binding_head=use_binding_head,
             use_linker_head=use_linker_head,
-            use_crf_linker=use_crf_linker,
             binding_combined=model_cfg.get('binding_combined', False),
             binding_head_type=model_cfg.get('binding_head_type', 'cnn'),
         )
@@ -157,7 +141,6 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
             backbone=backbone,
             device=device,
             context_type=phase1_context_type,
-            use_crf=use_crf,
         )
     
     model.load_state_dict(checkpoint['model_state_dict'], strict=True)
@@ -228,11 +211,7 @@ def predict_sequence(model: cascDP_Phase2, sequence: str, device: str, optimal_t
     disorder_logits, binding_logits, linker_logits = model(sequences=sequences)
     
     # Disorder
-    # Output shape: (batch, seq_len, 1) or (batch, seq_len) or (batch, seq_len, 2)
-    
-    # Handle CRF logits - convert (B, L, 2) to relative logits (B, L, 1)
-    if disorder_logits.shape[-1] == 2:
-         disorder_logits = disorder_logits[..., 1:2] - disorder_logits[..., 0:1]
+    # Output shape: (batch, seq_len, 1) or (batch, seq_len)
 
     if disorder_logits.dim() == 3:
         disorder_logits = disorder_logits.squeeze(-1)
@@ -259,19 +238,12 @@ def predict_sequence(model: cascDP_Phase2, sequence: str, device: str, optimal_t
     linker_pred = None
     
     if linker_logits is not None:
-        if model.use_crf_linker:
-            emissions = linker_logits
-            mask = torch.ones(emissions.shape[:2], dtype=torch.bool, device=device)
-            best_paths = model.linker_crf.decode(emissions, mask=mask)
-            linker_pred = np.array(best_paths[0])
-            linker_probs = torch.softmax(linker_logits, dim=-1)[0, :, 1].cpu().numpy()
-        else:
-             # linker_logits: (batch, seq_len, 1) or scalar
-             if linker_logits.dim() == 3:
-                 linker_logits = linker_logits.squeeze(-1)
-             linker_probs = torch.sigmoid(linker_logits)[0].cpu().numpy()
-             # Use optimal threshold for linker prediction
-             linker_pred = (linker_probs > optimal_thresholds.get('linker', 0.5)).astype(int)
+         # linker_logits: (batch, seq_len, 1) or scalar
+         if linker_logits.dim() == 3:
+             linker_logits = linker_logits.squeeze(-1)
+         linker_probs = torch.sigmoid(linker_logits)[0].cpu().numpy()
+         # Use optimal threshold for linker prediction
+         linker_pred = (linker_probs > optimal_thresholds.get('linker', 0.5)).astype(int)
 
     return disorder_probs, binding_probs, linker_probs, linker_pred, binding_pred
 

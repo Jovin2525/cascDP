@@ -255,28 +255,16 @@ class cascDP_Ablation1(nn.Module):
         **kwargs,
     ) -> "cascDP_Ablation1":
         """
-        Build ablation model, loading LoRA-fine-tuned backbone from a Phase 1 checkpoint.
+        Build ablation model, loading backbone from a Phase 1 checkpoint.
 
         Only the ``backbone.*`` keys from the checkpoint are applied to the
         backbone model.  All other Phase 1 keys (local_context, disorder head,
-        MLP, CRF, …) are ignored — they do not exist in the ablation model.
-
-        Args:
-            checkpoint_path: Path to cascDP_Phase1 checkpoint (.pt file).
-            backbone:        ProteinBackbone with LoRA already configured
-                             (same r, alpha, target_modules as the checkpoint).
-            device:          Device string.
-            **kwargs:        Forwarded to __init__
-                             (context_type, use_binding_head, use_linker_head,
-                             freeze_backbone, …).
-
-        Returns:
-            cascDP_Ablation1 with LoRA-fine-tuned backbone weights.
+        MLP, …) are ignored — they do not exist in the ablation model.
         """
         ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
         state = ckpt["model_state_dict"]
 
-        # Extract only the backbone sub-tree (keys: "backbone.<rest>")
+        # Extract only backbone sub-tree (keys: "backbone.<rest>")
         backbone_prefix = "backbone."
         backbone_state = {
             k[len(backbone_prefix):]: v

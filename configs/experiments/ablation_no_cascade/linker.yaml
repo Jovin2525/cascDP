@@ -22,7 +22,6 @@ model:
 
   use_binding_head: false
   use_linker_head: true
-  use_crf_linker: false
 
   freeze_backbone: false
   use_lora: true

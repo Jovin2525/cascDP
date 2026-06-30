@@ -38,7 +38,6 @@ class cascDP_Phase1Recycle(cascDP_Phase1):
         device: str = "cuda",
         context_type: str = "bigru",
         dropout: float = 0.5,
-        use_crf: bool = False,
         freeze_backbone: bool = False,
         disorder_prior: float = 0.1159,
         num_recycles: int = 2, # number of recycle passes on top of base pass
@@ -48,7 +47,6 @@ class cascDP_Phase1Recycle(cascDP_Phase1):
             device=device,
             context_type=context_type,
             dropout=dropout,
-            use_crf=use_crf,
             freeze_backbone=freeze_backbone,
             disorder_prior=disorder_prior,
         )

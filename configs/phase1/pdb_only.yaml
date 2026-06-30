@@ -11,7 +11,6 @@ model:
   disorder_prior: 0.1009  # PDB-only: 446,200 / 4,422,328 disordered residues
   context_type: bigru
   fusion_type: sum
-  use_crf: false
   freeze_backbone: false
   use_lora: true
   lora:

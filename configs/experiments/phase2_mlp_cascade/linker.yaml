@@ -31,7 +31,6 @@ model:
   # Head configuration (linker-only; binding trained separately)
   use_binding_head: false
   use_linker_head: true
-  use_crf_linker: false
 
   # Cascade bottleneck dimension for all Phase 2 head layers.
   # 512: disorder_proj expands 128->512 (same width as standard Phase 2)

@@ -26,7 +26,6 @@ model:
   use_cross_attention: true
   use_binding_head: true
   use_linker_head: true
-  use_crf_linker: false
 
   # LoRA Configuration (must match Phase 1 checkpoint)
   freeze_backbone: true

@@ -6,7 +6,6 @@ import logging
 from .cascDP_phase1 import cascDP_Phase1
 from .context_modules import BiGRUContext, BiLSTMContext, CNNHead, ASPPBlock
 from .fusion_modules import CrossAttentionFusion
-from torchcrf import CRF
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,6 @@ class cascDP_Phase2(nn.Module):
         dropout: float = 0.2,
         use_binding_head: bool = True,
         use_linker_head: bool = True,
-        use_crf_linker: bool = False,
         binding_combined: bool = False,
         binding_head_type: str = "cnn",
         binding_priors: Optional[List[float]] = None,
@@ -78,7 +76,6 @@ class cascDP_Phase2(nn.Module):
         )
         self.use_binding_head = use_binding_head
         self.use_linker_head = use_linker_head
-        self.use_crf_linker = use_crf_linker
         self.binding_combined = binding_combined
         self.binding_head_type = binding_head_type
         self.dropout = dropout
@@ -181,7 +178,7 @@ class cascDP_Phase2(nn.Module):
 
             self.linker_gru = self._build_context(self.linker_context_type, linker_dim, dropout=dropout)
 
-            linker_output_dim = 2 if self.use_crf_linker else 1
+            linker_output_dim = 1
             self.linker_head = ASPPBlock(
                 in_dim=linker_dim,
                 out_dim=256,
@@ -190,13 +187,9 @@ class cascDP_Phase2(nn.Module):
             )
             self.linker_final = nn.Linear(256, linker_output_dim)
             
-            if self.use_crf_linker:
-                self.linker_crf = CRF(2, batch_first=True)
-                logger.info("Phase 2: Using CRF for linker prediction")
-            else:
-                linker_bias = -math.log((1 - linker_prior) / linker_prior)
-                torch.nn.init.constant_(self.linker_final.bias, linker_bias)
-                logger.info(f"Phase 2: Initialized linker head (cross-attn -> {self.linker_context_type} -> ASPP -> Linear, bias={linker_bias:.4f}, prior={linker_prior:.4f})")
+            linker_bias = -math.log((1 - linker_prior) / linker_prior)
+            torch.nn.init.constant_(self.linker_final.bias, linker_bias)
+            logger.info(f"Phase 2: Initialized linker head (cross-attn -> {self.linker_context_type} -> ASPP -> Linear, bias={linker_bias:.4f}, prior={linker_prior:.4f})")
         
         self.to(device)
         
@@ -357,7 +350,7 @@ class cascDP_Phase2(nn.Module):
             phase1_model:      Initialised cascDP_Phase1 instance (weights loaded from binding ckpt)
             device:            Device to place the model on
             **kwargs:          Architecture kwargs forwarded to __init__
-                               (context_type, use_crf_linker, …).
+                               (context_type, …).
                                use_binding_head and use_linker_head are forced to True.
 
         Returns:

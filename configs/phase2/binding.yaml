@@ -21,7 +21,6 @@ model:
   # Phase 2 specific settings (binding-only)
   use_binding_head: true   # Binding-only training; linker is trained separately
   use_linker_head: false   # Disable linker head
-  use_crf_linker: false
   # binding_combined: true  -> single output head trained on combined-binding label (col 4)
   # binding_combined: false -> 4-output multi-label head (one per binding type)
   binding_combined: false

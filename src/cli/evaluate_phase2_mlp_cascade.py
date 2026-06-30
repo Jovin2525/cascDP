@@ -114,15 +114,6 @@ def load_model(checkpoint_path: str, device: str = "cuda"):
         layers_to_transform=layers_to_transform,
     )
 
-    # Phase 1 CRF detection
-    use_crf = any("phase1.crf.transitions" in k for k in checkpoint_keys)
-    if use_crf:
-        logging.info("Detected Phase 1 CRF in checkpoint")
-
-    use_crf_linker = model_cfg.get("use_crf_linker", False)
-    if use_crf_linker:
-        logging.info("Using Linker CRF from checkpoint config")
-
     # Recycled Phase 1 detection
     is_recycled = any("phase1.recycle_proj" in k for k in checkpoint_keys)
     if is_recycled:
@@ -132,7 +123,6 @@ def load_model(checkpoint_path: str, device: str = "cuda"):
             backbone=backbone,
             device=device,
             context_type=phase1_context_type,
-            use_crf=use_crf,
             num_recycles=num_recycles,
         )
     else:
@@ -140,7 +130,6 @@ def load_model(checkpoint_path: str, device: str = "cuda"):
             backbone=backbone,
             device=device,
             context_type=phase1_context_type,
-            use_crf=use_crf,
         )
 
     use_binding_head = model_cfg.get("use_binding_head", True)
@@ -164,7 +153,6 @@ def load_model(checkpoint_path: str, device: str = "cuda"):
         linker_context_type=linker_context_type,
         use_binding_head=use_binding_head,
         use_linker_head=use_linker_head,
-        use_crf_linker=use_crf_linker,
         cascade_dim=cascade_dim,
     )
 

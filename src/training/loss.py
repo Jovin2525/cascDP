@@ -56,7 +56,6 @@ class Phase1Loss(nn.Module):
         self,
         loss_type: str = 'bce',
         pos_weight: float = None,
-        crf: nn.Module = None,
         focal_alpha: float = 0.25,
         focal_gamma: float = 2.0,
         gaussian_sigma: float = 0.0,
@@ -66,7 +65,6 @@ class Phase1Loss(nn.Module):
     ):
         super().__init__()
         self.device = device
-        self.crf = crf
         self.loss_type = loss_type
         self.boundary_aux_weight = boundary_aux_weight
         self.boundary_radius = boundary_radius
@@ -139,18 +137,6 @@ class Phase1Loss(nn.Module):
     def forward(self, logits, labels, mask):
         smooth_labels = self._smooth_labels(labels)
 
-        if self.crf is not None:
-             mask_bool = (mask > 0).bool()
-             sample_weights = mask.max(dim=-1).values  # (B,) — same w for all tokens in a sample
-             log_likelihood = self.crf(logits, labels.long(), mask=mask_bool, reduction='none')  # (B,)
-             nll_per_sample = -log_likelihood  # (B,)
-             token_counts = mask_bool.float().sum(dim=-1)  # (B,)
-             total_weighted_tokens = (token_counts * sample_weights).sum()
-             nll = (nll_per_sample * sample_weights).sum() / torch.clamp(total_weighted_tokens, min=1.0)
-             if self.boundary_aux_weight > 0.0:
-                 nll = nll + self.boundary_aux_weight * self._boundary_aux_loss(logits, labels, mask_bool.float())
-             return nll
-             
         if logits.dim() == 3 and logits.shape[-1] == 1:
             logits = logits.squeeze(-1)
 
@@ -178,7 +164,6 @@ class Phase2Loss(nn.Module):
         pos_weight_linker: float = None,
         idr_weight_binding: float = 1.0,
         idr_weight_linker: float = 1.0,
-        linker_crf: nn.Module = None,
         linker_gaussian_sigma: float = 0.0,
         device: str = 'cuda',
         focal_alpha: float = 0.25,
@@ -190,14 +175,13 @@ class Phase2Loss(nn.Module):
         self.device = device
         self.idr_weight_binding = idr_weight_binding
         self.idr_weight_linker = idr_weight_linker
-        self.linker_crf = linker_crf
         self.binding_loss_type = binding_loss_type
         self.linker_loss_type = linker_loss_type
         self.focal_positives_only = focal_positives_only
 
         # Gaussian label smoothing for linker (same approach as Phase 1 disorder).
-        # Softens L<->non-L boundaries; skipped when CRF is active (requires hard labels).
-        if linker_gaussian_sigma > 0 and linker_crf is None:
+        # Softens L<->non-L boundaries.
+        if linker_gaussian_sigma > 0:
             radius = max(1, int(math.ceil(3.0 * linker_gaussian_sigma)))
             x = torch.arange(-radius, radius + 1, dtype=torch.float32)
             k = torch.exp(-0.5 * (x / linker_gaussian_sigma) ** 2)
@@ -290,24 +274,20 @@ class Phase2Loss(nn.Module):
              total_loss += b_loss
              loss_dict['binding'] = b_loss.detach()
              
-        # Linker
+         # Linker
         if linker_logits is not None:
              l_mask = mask * linker_mask if linker_mask is not None else mask
              
-             if self.linker_crf is not None:
-                  mask_bool = l_mask.bool()
-                  loss_dict['linker'] = -self.linker_crf(linker_logits, linker_labels.long(), mask=mask_bool, reduction='token_mean')
-             else:
-                  smooth_linker_labels = self._smooth_linker_labels(linker_labels)
-                  loss_dict['linker'] = self._compute_loss(
-                     self.linker_criterion,
-                     self.linker_loss_type,
-                     linker_logits,
-                     smooth_linker_labels,
-                     l_mask,
-                     idr_weight=self.idr_weight_linker,
-                     disorder_labels=disorder_labels
-                  )
+             smooth_linker_labels = self._smooth_linker_labels(linker_labels)
+             loss_dict['linker'] = self._compute_loss(
+                self.linker_criterion,
+                self.linker_loss_type,
+                linker_logits,
+                smooth_linker_labels,
+                l_mask,
+                idr_weight=self.idr_weight_linker,
+                disorder_labels=disorder_labels
+             )
              total_loss += loss_dict['linker']
              
         loss_dict['total'] = total_loss.detach()
@@ -325,8 +305,6 @@ class CascadedLoss(nn.Module):
         device: str = 'cuda',
         idr_weight_binding: float = 1.0,
         idr_weight_linker: float = 1.0,
-        disorder_crf: nn.Module = None,
-        linker_crf: nn.Module = None,
         disorder_loss_type: str = None,
         binding_loss_type: str = None,
         linker_loss_type: str = None,
@@ -347,7 +325,6 @@ class CascadedLoss(nn.Module):
         self.phase1_loss = Phase1Loss(
             loss_type=self.disorder_loss_type,
             pos_weight=pos_weight_disorder,
-            crf=disorder_crf,
             focal_alpha=focal_alpha,
             focal_gamma=focal_gamma,
             gaussian_sigma=gaussian_sigma,
@@ -363,7 +340,6 @@ class CascadedLoss(nn.Module):
             pos_weight_linker=pos_weight_linker,
             idr_weight_binding=idr_weight_binding,
             idr_weight_linker=idr_weight_linker,
-            linker_crf=linker_crf,
             linker_gaussian_sigma=linker_gaussian_sigma,
             device=device,
             focal_alpha=focal_alpha,

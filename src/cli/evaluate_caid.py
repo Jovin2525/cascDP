@@ -182,23 +182,8 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
     checkpoint_keys = list(checkpoint['model_state_dict'].keys())
     is_phase2 = any('binding_' in key or 'linker_' in key for key in checkpoint_keys)
 
-    # Determine if CRF was used based on checkpoint keys
-    if is_phase2:
-        # For Phase 2 model, Phase 1 CRF keys would be under 'phase1.crf'
-        # Must distinguish from 'linker_crf' which also contains 'crf'
-        use_crf = any('phase1.crf.transitions' in key for key in checkpoint_keys)
-    else:
-        # For Phase 1 model, keys are at root
-        use_crf = any('crf.transitions' in key for key in checkpoint_keys)
-
-    if use_crf:
-        logging.info("Detected CRF in checkpoint (Phase 1)")
-
     if is_phase2:
         logging.info("Detected Phase 2 model (function heads)")
-        use_crf_linker = model_cfg.get('use_crf_linker', False)
-        if use_crf_linker:
-            logging.info("Using Linker CRF from checkpoint config")
 
         # Create Phase 1 model (recycled or standard)
         is_recycled_phase1 = any('phase1.recycle_proj' in k for k in checkpoint_keys)
@@ -209,7 +194,6 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
                 backbone=backbone,
                 device=device,
                 context_type=phase1_context_type,
-                use_crf=use_crf,
                 num_recycles=num_recycles,
             )
         else:
@@ -217,7 +201,6 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
                 backbone=backbone,
                 device=device,
                 context_type=phase1_context_type,
-                use_crf=use_crf,
                 fusion_type=model_cfg.get('fusion_type', 'sum'),
             )
 
@@ -238,7 +221,6 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
             linker_context_type=linker_context_type,
             use_binding_head=use_binding_head,
             use_linker_head=use_linker_head,
-            use_crf_linker=use_crf_linker,
             binding_combined=model_cfg.get('binding_combined', False),
             binding_head_type=model_cfg.get('binding_head_type', 'cnn'),
         )
@@ -252,7 +234,6 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
                 backbone=backbone,
                 device=device,
                 context_type=phase1_context_type,
-                use_crf=use_crf,
                 num_recycles=num_recycles,
             )
         else:
@@ -260,7 +241,6 @@ def load_model(checkpoint_path: str, device: str = 'cuda'):
                 backbone=backbone,
                 device=device,
                 context_type=phase1_context_type,
-                use_crf=use_crf,
                 fusion_type=model_cfg.get('fusion_type', 'sum'),
             )
 
@@ -518,11 +498,6 @@ def forward_model(model, batch, device: str):
         disorder_logits = outputs
         binding_logits = None
         linker_logits = None
-
-    if disorder_logits is not None and disorder_logits.shape[-1] == 2:
-        disorder_logits = disorder_logits[..., 1:2] - disorder_logits[..., 0:1]
-    if linker_logits is not None and linker_logits.shape[-1] == 2:
-        linker_logits = linker_logits[..., 1:2] - linker_logits[..., 0:1]
 
     return disorder_logits, binding_logits, linker_logits
 

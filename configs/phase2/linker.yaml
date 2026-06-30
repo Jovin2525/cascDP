@@ -22,8 +22,6 @@ model:
   use_binding_head: false  # Linker-only training; binding is trained separately
   use_linker_head: true    # Enable linker head
 
-  use_crf_linker: false
-
   # LoRA Configuration (must match Phase 1 checkpoint)
   freeze_backbone: false
   use_lora: true
@@ -40,7 +38,7 @@ training:
   num_epochs: 50
   batch_size: 8
   gradient_accumulation_steps: 4
-  idr_weight_linker: 1.0 # Penalize linker errors in IDRs (upweight residues where disorder = 1) - not used if crf enabled
+  idr_weight_linker: 1.0 # Penalize linker errors in IDRs (upweight residues where disorder = 1)
 
   # Loss Configuration
   loss_type: "focal"  # Focal loss for linker prediction
